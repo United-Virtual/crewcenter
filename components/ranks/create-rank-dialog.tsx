@@ -3,10 +3,11 @@
 import { Search, X } from 'lucide-react';
 import { Info } from 'lucide-react';
 import { useAction } from 'next-safe-action/hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { createRankAction } from '@/actions/ranks/create-rank';
+import { getRankFormDataAction } from '@/actions/ranks/get-rank-form-data';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -20,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ResponsiveDialogFooter } from '@/components/ui/responsive-dialog-footer';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -34,7 +36,6 @@ import {
 
 interface CreateRankDialogProps {
   children: React.ReactNode;
-  aircraft: { id: string; name: string; livery: string }[];
 }
 
 interface RankFormProps {
@@ -327,14 +328,16 @@ export function RankForm({
   );
 }
 
-export default function CreateRankDialog({
-  children,
-  aircraft,
-}: CreateRankDialogProps) {
+export default function CreateRankDialog({ children }: CreateRankDialogProps) {
   const [open, setOpen] = useState(false);
+  const [aircraft, setAircraft] = useState<
+    { id: string; name: string; livery: string }[]
+  >([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[500px]',
   });
+
   const { execute, isPending } = useAction(createRankAction, {
     onSuccess: (args) => {
       const { data } = args;
@@ -342,7 +345,6 @@ export default function CreateRankDialog({
         toast.success(data.message);
         setOpen(false);
       } else if (data?.error) {
-        // Handle error response returned from action
         toast.error(data.error);
       }
     },
@@ -354,6 +356,28 @@ export default function CreateRankDialog({
       toast.error(errorMessage);
     },
   });
+
+  useEffect(() => {
+    if (open && aircraft.length === 0 && !isLoadingData) {
+      setIsLoadingData(true);
+      getRankFormDataAction()
+        .then((result) => {
+          if (result?.data) {
+            setAircraft(result.data.aircraft);
+          }
+        })
+        .catch((error) => {
+          const errorMessage = extractActionErrorMessage(
+            error as ActionErrorResponse,
+            'Failed to load form data'
+          );
+          toast.error(errorMessage);
+        })
+        .finally(() => {
+          setIsLoadingData(false);
+        });
+    }
+  }, [open, aircraft.length, isLoadingData]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -369,37 +393,60 @@ export default function CreateRankDialog({
             Enter rank details and configure aircraft permissions.
           </DialogDescription>
         </DialogHeader>
-        <RankForm
-          initialValues={{
-            name: '',
-            minimumFlightTime: '',
-            maximumFlightTime: '',
-            allowAllAircraft: false,
-            selectedAircraftIds: [],
-          }}
-          onSubmit={({
-            name,
-            minimumFlightTime,
-            maximumFlightTime,
-            allowAllAircraft,
-            selectedAircraftIds,
-          }) => {
-            const minFlightTime = Number(minimumFlightTime);
-            const maxFlightTime = maximumFlightTime.trim()
-              ? Number(maximumFlightTime)
-              : null;
-            execute({
-              name: name.trim(),
-              minimumFlightTime: minFlightTime,
-              maximumFlightTime: maxFlightTime,
+        {isLoadingData || aircraft.length === 0 ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </div>
+        ) : (
+          <RankForm
+            initialValues={{
+              name: '',
+              minimumFlightTime: '',
+              maximumFlightTime: '',
+              allowAllAircraft: false,
+              selectedAircraftIds: [],
+            }}
+            onSubmit={({
+              name,
+              minimumFlightTime,
+              maximumFlightTime,
               allowAllAircraft,
-              aircraftIds: selectedAircraftIds,
-            });
-          }}
-          onCancel={() => setOpen(false)}
-          isPending={isPending}
-          aircraft={aircraft}
-        />
+              selectedAircraftIds,
+            }) => {
+              const minFlightTime = Number(minimumFlightTime);
+              const maxFlightTime = maximumFlightTime.trim()
+                ? Number(maximumFlightTime)
+                : null;
+              execute({
+                name: name.trim(),
+                minimumFlightTime: minFlightTime,
+                maximumFlightTime: maxFlightTime,
+                allowAllAircraft,
+                aircraftIds: selectedAircraftIds,
+              });
+            }}
+            onCancel={() => setOpen(false)}
+            isPending={isPending}
+            aircraft={aircraft}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

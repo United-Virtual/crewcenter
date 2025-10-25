@@ -4,7 +4,7 @@ import { AdminPage, CreateButton } from '@/components/admin/admin-page';
 import { AdminSearchBar } from '@/components/admin/admin-search-bar';
 import CreateRankDialog from '@/components/ranks/create-rank-dialog';
 import { RanksTable } from '@/components/ranks/ranks-table';
-import { getAircraft, getRanksPaginated } from '@/db/queries';
+import { getRanksPaginated } from '@/db/queries';
 import { requireRole } from '@/lib/auth-check';
 import { parsePaginationParams } from '@/lib/pagination';
 
@@ -26,10 +26,7 @@ export default async function RanksPage({ searchParams }: RanksPageProps) {
 
   const { page, search, limit } = await parsePaginationParams(searchParams);
 
-  const [{ ranks, total }, aircraft] = await Promise.all([
-    getRanksPaginated(page, limit, search),
-    getAircraft(),
-  ]);
+  const { ranks, total } = await getRanksPaginated(page, limit, search);
 
   return (
     <AdminPage
@@ -37,18 +34,11 @@ export default async function RanksPage({ searchParams }: RanksPageProps) {
       description="Manage pilot ranks and their associated aircraft permissions"
       searchBar={<AdminSearchBar placeholder="Search rank..." />}
       createDialog={
-        <CreateRankDialog aircraft={aircraft}>
+        <CreateRankDialog>
           <CreateButton text="Add Rank" />
         </CreateRankDialog>
       }
-      table={
-        <RanksTable
-          ranks={ranks}
-          total={total}
-          limit={limit}
-          aircraft={aircraft}
-        />
-      }
+      table={<RanksTable ranks={ranks} total={total} limit={limit} />}
     />
   );
 }
