@@ -23,12 +23,6 @@ export function SearchableRanksTable({
   onEdit,
 }: SearchableRanksTableProps) {
   return (
-    <RanksTable
-      ranks={ranks}
-      total={total}
-      limit={limit}
-      onEdit={onEdit}
-      aircraft={[]}
-    />
+    <RanksTable ranks={ranks} total={total} limit={limit} onEdit={onEdit} />
   );
 }

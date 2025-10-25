@@ -1,7 +1,11 @@
+'use client';
+
 import { useAction } from 'next-safe-action/hooks';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { editRankAction } from '@/actions/ranks/edit-rank';
+import { getRankFormDataAction } from '@/actions/ranks/get-rank-form-data';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
 import {
   ActionErrorResponse,
@@ -28,18 +33,21 @@ interface EditRankDialogProps {
     allowAllAircraft: boolean;
     aircraftIds: string[];
   };
-  aircraft: { id: string; name: string; livery: string }[];
 }
 
 export default function EditRankDialog({
   open,
   onOpenChange,
   rank,
-  aircraft,
 }: EditRankDialogProps) {
+  const [aircraft, setAircraft] = useState<
+    { id: string; name: string; livery: string }[]
+  >([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[500px]',
   });
+
   const { execute, isPending } = useAction(editRankAction, {
     onSuccess: (args) => {
       const { data } = args;
@@ -57,6 +65,28 @@ export default function EditRankDialog({
     },
   });
 
+  useEffect(() => {
+    if (open && aircraft.length === 0 && !isLoadingData) {
+      setIsLoadingData(true);
+      getRankFormDataAction()
+        .then((result) => {
+          if (result?.data) {
+            setAircraft(result.data.aircraft);
+          }
+        })
+        .catch((error) => {
+          const errorMessage = extractActionErrorMessage(
+            error as ActionErrorResponse,
+            'Failed to load form data'
+          );
+          toast.error(errorMessage);
+        })
+        .finally(() => {
+          setIsLoadingData(false);
+        });
+    }
+  }, [open, aircraft.length, isLoadingData]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -70,47 +100,70 @@ export default function EditRankDialog({
             Update rank details and aircraft permissions.
           </DialogDescription>
         </DialogHeader>
-        <RankForm
-          initialValues={{
-            name: rank.name,
-            minimumFlightTime: String(rank.minimumFlightTime),
-            maximumFlightTime:
-              rank.maximumFlightTime !== null
-                ? String(rank.maximumFlightTime)
-                : '',
-            allowAllAircraft: rank.allowAllAircraft,
-            selectedAircraftIds: rank.aircraftIds,
-          }}
-          onSubmit={({
-            name,
-            minimumFlightTime,
-            maximumFlightTime,
-            allowAllAircraft,
-            selectedAircraftIds,
-          }: {
-            name: string;
-            minimumFlightTime: string;
-            maximumFlightTime: string;
-            allowAllAircraft: boolean;
-            selectedAircraftIds: string[];
-          }) => {
-            const minFlightTime = Number(minimumFlightTime);
-            const maxFlightTime = maximumFlightTime.trim()
-              ? Number(maximumFlightTime)
-              : null;
-            execute({
-              id: rank.id,
-              name: name.trim(),
-              minimumFlightTime: minFlightTime,
-              maximumFlightTime: maxFlightTime,
+        {isLoadingData || aircraft.length === 0 ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </div>
+        ) : (
+          <RankForm
+            initialValues={{
+              name: rank.name,
+              minimumFlightTime: String(rank.minimumFlightTime),
+              maximumFlightTime:
+                rank.maximumFlightTime !== null
+                  ? String(rank.maximumFlightTime)
+                  : '',
+              allowAllAircraft: rank.allowAllAircraft,
+              selectedAircraftIds: rank.aircraftIds,
+            }}
+            onSubmit={({
+              name,
+              minimumFlightTime,
+              maximumFlightTime,
               allowAllAircraft,
-              aircraftIds: selectedAircraftIds,
-            });
-          }}
-          onCancel={() => onOpenChange(false)}
-          isPending={isPending}
-          aircraft={aircraft}
-        />
+              selectedAircraftIds,
+            }: {
+              name: string;
+              minimumFlightTime: string;
+              maximumFlightTime: string;
+              allowAllAircraft: boolean;
+              selectedAircraftIds: string[];
+            }) => {
+              const minFlightTime = Number(minimumFlightTime);
+              const maxFlightTime = maximumFlightTime.trim()
+                ? Number(maximumFlightTime)
+                : null;
+              execute({
+                id: rank.id,
+                name: name.trim(),
+                minimumFlightTime: minFlightTime,
+                maximumFlightTime: maxFlightTime,
+                allowAllAircraft,
+                aircraftIds: selectedAircraftIds,
+              });
+            }}
+            onCancel={() => onOpenChange(false)}
+            isPending={isPending}
+            aircraft={aircraft}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

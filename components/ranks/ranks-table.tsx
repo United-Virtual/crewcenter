@@ -50,15 +50,9 @@ interface RanksTableProps {
   total: number;
   limit?: number;
   onEdit?: (id: string) => void;
-  aircraft: { id: string; name: string; livery: string }[];
 }
 
-export function RanksTable({
-  ranks,
-  total,
-  limit = 10,
-  aircraft,
-}: RanksTableProps) {
+export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
   const router = useRouter();
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const { dialogStyles } = useResponsiveDialog({
@@ -256,7 +250,6 @@ export function RanksTable({
             allowAllAircraft: editAllowAllAircraft,
             aircraftIds: editAircraftIds,
           }}
-          aircraft={aircraft}
         />
       )}
 
