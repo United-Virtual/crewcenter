@@ -1,10 +1,11 @@
 'use client';
 
 import { useAction } from 'next-safe-action/hooks';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { createEventAction } from '@/actions/events/create-event';
+import { getEventFormDataAction } from '@/actions/events/get-event-form-data';
 import { EventForm } from '@/components/events/event-form';
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { type Aircraft, type Multiplier } from '@/db/schema';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
 import {
@@ -23,19 +25,37 @@ import {
 
 interface CreateEventDialogProps {
   children: React.ReactNode;
-  aircraft: Aircraft[];
-  multipliers: Multiplier[];
 }
 
 export default function CreateEventDialog({
   children,
-  aircraft,
-  multipliers,
 }: CreateEventDialogProps) {
   const [open, setOpen] = useState(false);
+  const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [multipliers, setMultipliers] = useState<Multiplier[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[800px]',
   });
+
+  useEffect(() => {
+    if (open && aircraft.length === 0 && !isLoading) {
+      setIsLoading(true);
+      getEventFormDataAction()
+        .then((result) => {
+          if (result?.data) {
+            setAircraft(result.data.aircraft);
+            setMultipliers(result.data.multipliers);
+          }
+        })
+        .catch(() => {
+          toast.error('Failed to load form data');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [open, aircraft.length, isLoading]);
 
   const { execute, isPending } = useAction(createEventAction, {
     onSuccess: ({ data }) => {
@@ -84,21 +104,29 @@ export default function CreateEventDialog({
             Create a new event for pilots to participate in.
           </DialogDescription>
         </DialogHeader>
-        <EventForm
-          aircraft={aircraft}
-          multipliers={multipliers}
-          onSubmit={(data, imageFile) => {
-            execute({
-              ...data,
-              departureTime: new Date(data.departureTime!),
-              multiplierId: data.multiplierId ?? undefined,
-              imageFile: imageFile ?? undefined,
-              status: data.status,
-            });
-          }}
-          isSubmitting={isPending}
-          onCancel={() => setOpen(false)}
-        />
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          <EventForm
+            aircraft={aircraft}
+            multipliers={multipliers}
+            onSubmit={(data, imageFile) => {
+              execute({
+                ...data,
+                departureTime: new Date(data.departureTime!),
+                multiplierId: data.multiplierId ?? undefined,
+                imageFile: imageFile ?? undefined,
+                status: data.status,
+              });
+            }}
+            isSubmitting={isPending}
+            onCancel={() => setOpen(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
