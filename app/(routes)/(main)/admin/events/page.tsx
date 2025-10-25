@@ -37,11 +37,6 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
 
   const status = resolvedSearchParams?.status;
 
-  const [aircraft, multipliers] = await Promise.all([
-    getAircraft(),
-    getMultipliers(),
-  ]);
-
   let events;
   let total;
 
@@ -64,13 +59,18 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
     }))
     .sort((a, b) => Number(a.departureTime) - Number(b.departureTime));
 
+  const [aircraft, multipliers] = await Promise.all([
+    getAircraft(),
+    getMultipliers(),
+  ]);
+
   return (
     <PageLayout
       title="Events"
       description="Create and manage flight events to engage your pilot community"
       headerRight={
         <>
-          <CreateEventDialog aircraft={aircraft} multipliers={multipliers}>
+          <CreateEventDialog>
             <Button className="gap-2" size="default">
               <Plus className="h-4 w-4" />
               Create Event
