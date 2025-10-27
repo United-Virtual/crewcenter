@@ -38,6 +38,11 @@ export const auth = betterAuth({
         required: true,
         input: true,
       },
+      discourseUsername: {
+        type: 'string',
+        required: false,
+        input: true,
+      },
     },
     deleteUser: {
       enabled: true,
@@ -85,6 +90,21 @@ export const auth = betterAuth({
             if (!discordRegex.test(dbUser.discordUsername)) {
               throw new APIError('BAD_REQUEST', {
                 message: 'Invalid Discord username format',
+              });
+            }
+          }
+
+          // Check for duplicate IFC username
+          if (dbUser.discourseUsername) {
+            const existingUser = await db
+              .select()
+              .from(users)
+              .where(eq(users.discourseUsername, dbUser.discourseUsername))
+              .get();
+
+            if (existingUser) {
+              throw new APIError('BAD_REQUEST', {
+                message: 'This IFC username is already registered',
               });
             }
           }
