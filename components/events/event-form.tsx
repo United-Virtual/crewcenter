@@ -89,8 +89,8 @@ const eventFormSchema = z
         /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
         'Time must be in HH:MM format'
       ),
-    flightTimeHours: z.number().min(0),
-    flightTimeMinutes: z.number().min(0).max(59),
+    flightTimeHours: z.number().min(0).optional(),
+    flightTimeMinutes: z.number().min(0).max(59).optional(),
     flightTime: z.number().min(1, 'Flight time must be at least 1 minute'),
     flightNumber: z
       .string()
@@ -98,12 +98,14 @@ const eventFormSchema = z
       .max(20, 'Flight number must be less than 20 characters'),
     cargo: z
       .number()
-      .min(1, 'Cargo must be at least 1 kg')
-      .max(200000, 'Cargo must be at most 200,000 kg'),
+      .min(0, 'Cargo must be non-negative')
+      .max(200000, 'Cargo must be at most 200,000 kg')
+      .optional(),
     fuel: z
       .number()
-      .min(1, 'Fuel must be at least 1 kg')
-      .max(200000, 'Fuel must be at most 200,000 kg'),
+      .min(0, 'Fuel must be non-negative')
+      .max(200000, 'Fuel must be at most 200,000 kg')
+      .optional(),
     multiplierId: z.string().optional().nullable(),
     status: z.enum(['draft', 'published']),
     aircraftIds: z
@@ -111,14 +113,15 @@ const eventFormSchema = z
       .min(1, 'At least one aircraft must be selected'),
     departureGates: z
       .array(z.string().min(1, 'Gate number is required'))
-      .min(1, 'At least one departure gate must be specified'),
+      .optional(),
     arrivalGates: z
       .array(z.string().min(1, 'Gate number is required'))
-      .min(1, 'At least one arrival gate must be specified'),
+      .optional(),
   })
   .refine(
     (data) => {
-      const totalMinutes = data.flightTimeHours * 60 + data.flightTimeMinutes;
+      const totalMinutes =
+        (data.flightTimeHours || 0) * 60 + (data.flightTimeMinutes || 0);
       return totalMinutes >= 1;
     },
     {
@@ -128,7 +131,8 @@ const eventFormSchema = z
   )
   .refine(
     (data) => {
-      const totalMinutes = data.flightTimeHours * 60 + data.flightTimeMinutes;
+      const totalMinutes =
+        (data.flightTimeHours || 0) * 60 + (data.flightTimeMinutes || 0);
       return totalMinutes <= 1440;
     },
     {
@@ -290,7 +294,7 @@ export function EventForm({
 
   const handleSubmit = (data: EventFormData) => {
     const totalFlightTimeMinutes =
-      data.flightTimeHours * 60 + data.flightTimeMinutes;
+      (data.flightTimeHours ?? 0) * 60 + (data.flightTimeMinutes ?? 0);
 
     // Combine date and time into ISO string
     const departureDateTime = new Date(data.departureDate);
@@ -342,8 +346,8 @@ export function EventForm({
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === 'flightTimeHours' || name === 'flightTimeMinutes') {
-        const hours = value.flightTimeHours || 0;
-        const minutes = value.flightTimeMinutes || 0;
+        const hours = value.flightTimeHours ?? 0;
+        const minutes = value.flightTimeMinutes ?? 0;
         form.setValue('flightTime', hours * 60 + minutes, {
           shouldValidate: true,
         });
@@ -614,10 +618,10 @@ export function EventForm({
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="11"
+                      placeholder="0"
                       type="text"
                       {...field}
-                      value={field.value || ''}
+                      value={field.value ?? ''}
                       onKeyDown={(e) => {
                         if (
                           e.key === '-' ||
@@ -630,11 +634,11 @@ export function EventForm({
                       }}
                       onChange={(e) => {
                         let value = e.target.value.replace(/[^0-9]/g, '');
-                        if (value) {
+                        if (value === '') {
+                          field.onChange(undefined);
+                        } else {
                           value = Math.min(Number(value), 1000).toString();
                           field.onChange(Number(value));
-                        } else {
-                          field.onChange(0);
                         }
                       }}
                     />
@@ -655,10 +659,10 @@ export function EventForm({
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="34"
+                      placeholder="0"
                       type="text"
                       {...field}
-                      value={field.value || ''}
+                      value={field.value ?? ''}
                       onKeyDown={(e) => {
                         if (
                           e.key === '-' ||
@@ -671,11 +675,11 @@ export function EventForm({
                       }}
                       onChange={(e) => {
                         let value = e.target.value.replace(/[^0-9]/g, '');
-                        if (value) {
+                        if (value === '') {
+                          field.onChange(undefined);
+                        } else {
                           value = Math.min(Number(value), 59).toString();
                           field.onChange(Number(value));
-                        } else {
-                          field.onChange(0);
                         }
                       }}
                     />
@@ -692,16 +696,16 @@ export function EventForm({
                 <FormItem>
                   <FormLabel className="flex items-center">
                     <Package className="h-4 w-4" />
-                    Cargo (kg) *
+                    Cargo (kg)
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       inputMode="numeric"
-                      min={1}
+                      min={0}
                       max={MAX_CARGO_KG}
                       step={1}
-                      placeholder="2000"
+                      placeholder="0"
                       autoComplete="off"
                       value={field.value ?? ''}
                       onChange={(e) => {
@@ -722,16 +726,16 @@ export function EventForm({
                 <FormItem>
                   <FormLabel className="flex items-center">
                     <Fuel className="h-4 w-4" />
-                    Fuel (kg) *
+                    Fuel (kg)
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       inputMode="numeric"
-                      min={1}
+                      min={0}
                       max={MAX_FUEL_KG}
                       step={1}
-                      placeholder="8000"
+                      placeholder="0"
                       autoComplete="off"
                       value={field.value ?? ''}
                       onChange={(e) => {
@@ -817,12 +821,12 @@ export function EventForm({
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Gates *</h2>
+          <h2 className="text-lg font-semibold">Gates</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <GatesEditor
-              label="Departure Gates *"
-              placeholder="Type gate number and press Enter (e.g., A1, B2)"
-              values={form.watch('departureGates')}
+              label="Departure Gates"
+              placeholder="Type gate number and press Enter (e.g., A1, B2) - Optional"
+              values={form.watch('departureGates') || []}
               onChange={(values) =>
                 form.setValue('departureGates', values, {
                   shouldValidate: true,
@@ -833,9 +837,9 @@ export function EventForm({
               }
             />
             <GatesEditor
-              label="Arrival Gates *"
-              placeholder="Type gate number and press Enter (e.g., B1, C2)"
-              values={form.watch('arrivalGates')}
+              label="Arrival Gates"
+              placeholder="Type gate number and press Enter (e.g., B1, C2) - Optional"
+              values={form.watch('arrivalGates') || []}
               onChange={(values) =>
                 form.setValue('arrivalGates', values, { shouldValidate: true })
               }

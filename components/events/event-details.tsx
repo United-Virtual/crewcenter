@@ -160,7 +160,9 @@ export function EventDetails({
                     Cargo
                   </p>
                   <p className="text-lg font-semibold">
-                    {event.cargo.toLocaleString()} kg
+                    {event.cargo === 0
+                      ? 'Pilot Discretion'
+                      : `${event.cargo.toLocaleString()} kg`}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -168,7 +170,9 @@ export function EventDetails({
                     Fuel
                   </p>
                   <p className="text-lg font-semibold">
-                    {event.fuel.toLocaleString()} kg
+                    {event.fuel === 0
+                      ? 'Pilot Discretion'
+                      : `${event.fuel.toLocaleString()} kg`}
                   </p>
                 </div>
                 <div className="space-y-1">

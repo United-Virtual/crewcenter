@@ -52,14 +52,13 @@ const _createEventSchema = z.object({
     .max(
       MAX_CARGO_KG,
       `Cargo must be at most ${MAX_CARGO_KG.toLocaleString()} kg`
-    ),
+    )
+    .optional(),
   fuel: z
     .number()
     .min(0, 'Fuel must be non-negative')
-    .max(
-      MAX_FUEL_KG,
-      `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`
-    ),
+    .max(MAX_FUEL_KG, `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`)
+    .optional(),
   multiplierId: z.string().optional(),
   status: z.enum(['draft', 'published']),
   aircraftIds: z
@@ -67,10 +66,10 @@ const _createEventSchema = z.object({
     .min(1, 'At least one aircraft must be selected'),
   departureGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one departure gate must be specified'),
+    .optional(),
   arrivalGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one arrival gate must be specified'),
+    .optional(),
 });
 
 type CreateEventData = z.infer<typeof _createEventSchema>;
@@ -145,8 +144,8 @@ export async function createEventRecord(
     departureTime: data.departureTime,
     flightTime: data.flightTime,
     flightNumber: data.flightNumber,
-    cargo: data.cargo,
-    fuel: data.fuel,
+    cargo: data.cargo ?? 0,
+    fuel: data.fuel ?? 0,
     multiplierId: data.multiplierId,
     status: data.status,
     createdBy: userId,
@@ -158,11 +157,11 @@ export async function createEventRecord(
     addAircraftToEventMutation(event.id, aircraftId)
   );
 
-  const departureGatePromises = data.departureGates.map((gateNumber) =>
+  const departureGatePromises = (data.departureGates || []).map((gateNumber) =>
     addGateToEventMutation(event.id, gateNumber, 'departure')
   );
 
-  const arrivalGatePromises = data.arrivalGates.map((gateNumber) =>
+  const arrivalGatePromises = (data.arrivalGates || []).map((gateNumber) =>
     addGateToEventMutation(event.id, gateNumber, 'arrival')
   );
 

@@ -46,14 +46,13 @@ const updateEventSchema = z.object({
     .max(
       MAX_CARGO_KG,
       `Cargo must be at most ${MAX_CARGO_KG.toLocaleString()} kg`
-    ),
+    )
+    .optional(),
   fuel: z
     .number()
     .min(0, 'Fuel must be non-negative')
-    .max(
-      MAX_FUEL_KG,
-      `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`
-    ),
+    .max(MAX_FUEL_KG, `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`)
+    .optional(),
   multiplierId: z.string().optional(),
   status: z.enum(['draft', 'published', 'cancelled', 'completed']),
   aircraftIds: z
@@ -61,10 +60,10 @@ const updateEventSchema = z.object({
     .min(1, 'At least one aircraft must be selected'),
   departureGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one departure gate must be specified'),
+    .optional(),
   arrivalGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one arrival gate must be specified'),
+    .optional(),
 });
 
 export const updateEventAction = authActionClient
