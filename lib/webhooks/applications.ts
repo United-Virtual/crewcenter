@@ -30,11 +30,9 @@ export async function sendApplicationWebhook(
 
   lines.push(`📅 **Submitted:** <t:${ts}:R>`);
 
-  if (options.baseUrl) {
-    lines.push(
-      `[View Application](${options.baseUrl}/admin/users/${applicationData.userId})`
-    );
-  }
+  lines.push(
+    `[View Application](${options.baseUrl}/admin/users/${applicationData.userId})`
+  );
 
   const embed = createDiscordEmbed({
     title: '📝 New Pilot Application',
