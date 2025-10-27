@@ -42,6 +42,10 @@ export async function sendPirepWebhook(
 
   lines.push(`📅 **Submitted:** <t:${ts}:R>`);
 
+  if (options.baseUrl) {
+    lines.push(`[View PIREP](${options.baseUrl}/admin/pireps/${pirepData.id})`);
+  }
+
   const embed = createDiscordEmbed({
     title: '✈️ New PIREP Submitted',
     description: lines.join('\n\n'),

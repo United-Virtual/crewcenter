@@ -94,7 +94,6 @@ export const auth = betterAuth({
             }
           }
 
-          // Check for duplicate IFC username
           if (dbUser.discourseUsername) {
             const existingUser = await db
               .select()
