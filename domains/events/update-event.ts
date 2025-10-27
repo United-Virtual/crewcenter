@@ -56,14 +56,13 @@ const _updateEventSchema = z.object({
     .max(
       MAX_CARGO_KG,
       `Cargo must be at most ${MAX_CARGO_KG.toLocaleString()} kg`
-    ),
+    )
+    .optional(),
   fuel: z
     .number()
     .min(0, 'Fuel must be non-negative')
-    .max(
-      MAX_FUEL_KG,
-      `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`
-    ),
+    .max(MAX_FUEL_KG, `Fuel must be at most ${MAX_FUEL_KG.toLocaleString()} kg`)
+    .optional(),
   multiplierId: z.string().optional(),
   status: z.enum(['draft', 'published', 'cancelled', 'completed']),
   aircraftIds: z
@@ -71,10 +70,10 @@ const _updateEventSchema = z.object({
     .min(1, 'At least one aircraft must be selected'),
   departureGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one departure gate must be specified'),
+    .optional(),
   arrivalGates: z
     .array(z.string().min(1, 'Gate number is required'))
-    .min(1, 'At least one arrival gate must be specified'),
+    .optional(),
 });
 
 type UpdateEventData = z.infer<typeof _updateEventSchema> & {
@@ -213,8 +212,8 @@ export async function updateEventRecord(
     departureTime: data.departureTime,
     flightTime: data.flightTime,
     flightNumber: data.flightNumber,
-    cargo: data.cargo,
-    fuel: data.fuel,
+    cargo: data.cargo ?? 0,
+    fuel: data.fuel ?? 0,
     multiplierId: data.multiplierId || null,
     status: data.status,
   });
@@ -245,18 +244,18 @@ export async function updateEventRecord(
     .filter((g) => g.airportType === 'arrival')
     .map((g) => g.gateNumber);
 
-  const departureGatesToAdd = data.departureGates.filter(
+  const departureGatesToAdd = (data.departureGates || []).filter(
     (gate) => !existingDepartureGates.includes(gate)
   );
   const departureGatesToRemove = existingDepartureGates.filter(
-    (gate) => !data.departureGates.includes(gate)
+    (gate) => !(data.departureGates || []).includes(gate)
   );
 
-  const arrivalGatesToAdd = data.arrivalGates.filter(
+  const arrivalGatesToAdd = (data.arrivalGates || []).filter(
     (gate) => !existingArrivalGates.includes(gate)
   );
   const arrivalGatesToRemove = existingArrivalGates.filter(
-    (gate) => !data.arrivalGates.includes(gate)
+    (gate) => !(data.arrivalGates || []).includes(gate)
   );
 
   const aircraftAddPromises = aircraftToAdd.map((aircraftId) =>
