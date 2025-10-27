@@ -129,14 +129,17 @@ export const auth = betterAuth({
               await sendApplicationWebhook(
                 airlineData.newApplicationsWebhookUrl,
                 {
+                  userId: user.id,
                   email: user.email,
                   name: user.name,
                   callsign: dbUser.callsign || undefined,
+                  discordUsername: dbUser.discordUsername,
                   submittedAt: new Date(),
                 },
                 {
                   airlineName: airlineData.name,
                   airlineCallsign: airlineData.callsign,
+                  baseUrl: process.env.BETTER_AUTH_URL,
                 }
               );
             }
