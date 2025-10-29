@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7-labs
 
-FROM oven/bun:1.2.20
+FROM oven/bun:1.3.1
 
 # Add procps
 RUN apt-get update \
