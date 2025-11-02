@@ -43,6 +43,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
+import { useSession } from '@/lib/auth-client';
+import { isOwnerOrAdmin } from '@/lib/roles';
 import { formatHoursMinutes } from '@/lib/utils';
 
 interface RouteItem {
@@ -108,6 +110,8 @@ export function AdminRoutesView({
   aircraft,
 }: AdminRoutesViewProps) {
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
+  const { data: session } = useSession();
+  const canBulkDelete = isOwnerOrAdmin(session?.user?.role ?? null);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[420px]',
   });
@@ -311,7 +315,7 @@ export function AdminRoutesView({
         onEditFilter={handleEditFilter}
       />
 
-      {someSelected && (
+      {canBulkDelete && someSelected && (
         <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-foreground">
@@ -339,13 +343,15 @@ export function AdminRoutesView({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[50px] bg-muted/50">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={handleSelectAll}
-                    disabled={isDeleting || isBulkDeleting}
-                  />
-                </TableHead>
+                {canBulkDelete && (
+                  <TableHead className="w-[50px] bg-muted/50">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      disabled={isDeleting || isBulkDeleting}
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="bg-muted/50 font-semibold text-foreground">
                   Flight Numbers
                 </TableHead>
@@ -380,15 +386,17 @@ export function AdminRoutesView({
                     key={route.id}
                     className="transition-colors hover:bg-muted/30"
                   >
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedRouteIds.has(route.id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectRoute(route.id, checked as boolean)
-                        }
-                        disabled={isDeleting || isBulkDeleting}
-                      />
-                    </TableCell>
+                    {canBulkDelete && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedRouteIds.has(route.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectRoute(route.id, checked as boolean)
+                          }
+                          disabled={isDeleting || isBulkDeleting}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-foreground">
                       <div className="flex flex-wrap gap-1">
                         {(() => {

@@ -37,7 +37,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
+import { useSession } from '@/lib/auth-client';
 import { extractErrorMessage } from '@/lib/error-handler';
+import { isOwnerOrAdmin } from '@/lib/roles';
 
 import EditAircraftDialog from './edit-aircraft-dialog';
 
@@ -55,6 +57,8 @@ export function AircraftList(props: { [key: string]: unknown }) {
   const limit = (props.limit as number) ?? 10;
   const router = useRouter();
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
+  const { data: session } = useSession();
+  const canBulkDelete = isOwnerOrAdmin(session?.user?.role ?? null);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[420px]',
   });
@@ -172,7 +176,7 @@ export function AircraftList(props: { [key: string]: unknown }) {
 
   return (
     <>
-      {someSelected && (
+      {canBulkDelete && someSelected && (
         <div className="mb-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-foreground">
@@ -198,13 +202,15 @@ export function AircraftList(props: { [key: string]: unknown }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px] bg-muted/50">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  disabled={isExecuting || isBulkDeleting}
-                />
-              </TableHead>
+              {canBulkDelete && (
+                <TableHead className="w-[50px] bg-muted/50">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    disabled={isExecuting || isBulkDeleting}
+                  />
+                </TableHead>
+              )}
               <TableHead className="bg-muted/50 font-semibold text-foreground">
                 Aircraft Name
               </TableHead>
@@ -236,15 +242,17 @@ export function AircraftList(props: { [key: string]: unknown }) {
                   className="transition-colors hover:bg-muted/30"
                   key={plane.id}
                 >
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedAircraftIds.has(plane.id)}
-                      onCheckedChange={(checked) =>
-                        handleSelectAircraft(plane.id, checked as boolean)
-                      }
-                      disabled={isExecuting || isBulkDeleting}
-                    />
-                  </TableCell>
+                  {canBulkDelete && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedAircraftIds.has(plane.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectAircraft(plane.id, checked as boolean)
+                        }
+                        disabled={isExecuting || isBulkDeleting}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium text-foreground">
                     {plane.name}
                   </TableCell>

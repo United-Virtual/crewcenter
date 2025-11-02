@@ -101,3 +101,10 @@ export function getAllRolesForOwner(): string[] {
 export function clearAllRoles(): string[] {
   return [];
 }
+
+export function isOwnerOrAdmin(userRoles: string[] | string | null): boolean {
+  const normalizedRoles = normalizeRoles(userRoles);
+  return (
+    normalizedRoles.includes(OWNER_ROLE) || normalizedRoles.includes(ADMIN_ROLE)
+  );
+}

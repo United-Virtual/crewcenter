@@ -38,6 +38,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
+import { useSession } from '@/lib/auth-client';
+import { isOwnerOrAdmin } from '@/lib/roles';
 
 import EditRankDialog from './edit-rank-dialog';
 
@@ -58,6 +60,8 @@ interface RanksTableProps {
 
 export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canBulkDelete = isOwnerOrAdmin(session?.user?.role ?? null);
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[420px]',
@@ -182,7 +186,7 @@ export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
 
   return (
     <>
-      {someSelected && (
+      {canBulkDelete && someSelected && (
         <div className="mb-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-foreground">
@@ -209,13 +213,15 @@ export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px] bg-muted/50">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  disabled={isExecuting || isBulkDeleting}
-                />
-              </TableHead>
+              {canBulkDelete && (
+                <TableHead className="w-[50px] bg-muted/50">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    disabled={isExecuting || isBulkDeleting}
+                  />
+                </TableHead>
+              )}
               <TableHead className="bg-muted/50 font-semibold text-foreground">
                 Rank Name
               </TableHead>
@@ -247,15 +253,17 @@ export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
                   className="transition-colors hover:bg-muted/30"
                   key={rank.id}
                 >
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedRankIds.has(rank.id)}
-                      onCheckedChange={(checked) =>
-                        handleSelectRank(rank.id, checked as boolean)
-                      }
-                      disabled={isExecuting || isBulkDeleting}
-                    />
-                  </TableCell>
+                  {canBulkDelete && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRankIds.has(rank.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectRank(rank.id, checked as boolean)
+                        }
+                        disabled={isExecuting || isBulkDeleting}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium text-foreground">
                     {rank.name}
                   </TableCell>
