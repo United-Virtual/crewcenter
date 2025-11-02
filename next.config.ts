@@ -2,9 +2,6 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
-  turbopack: {
-    root: process.cwd(),
-  },
   experimental: {
     serverActions: {
       bodySizeLimit: '4mb',
@@ -12,6 +9,7 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
     browserDebugInfoInTerminal: true,
     webpackMemoryOptimizations: true,
+    devtoolSegmentExplorer: true,
   },
   devIndicators: false,
   compress: true,
