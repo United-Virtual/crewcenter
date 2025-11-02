@@ -1,14 +1,18 @@
 'use client';
 
-import { MoreHorizontal, Tags } from 'lucide-react';
+import { MoreHorizontal, Tags, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
 import { parseAsInteger, useQueryState } from 'nuqs';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { deleteMultiplierAction } from '@/actions/multipliers/delete-multiplier';
+import {
+  deleteBulkMultipliersAction,
+  deleteMultiplierAction,
+} from '@/actions/multipliers/delete-multiplier';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DataPagination } from '@/components/ui/data-pagination';
 import {
   Dialog,
@@ -33,7 +37,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
+import { useSession } from '@/lib/auth-client';
 import { extractErrorMessage } from '@/lib/error-handler';
+import { isOwnerOrAdmin } from '@/lib/roles';
 
 import EditMultiplierDialog from './edit-multiplier-dialog';
 
@@ -58,9 +64,11 @@ export function MultipliersTable({
   limit = 10,
 }: MultipliersTableProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const canBulkDelete = isOwnerOrAdmin(session?.user?.role ?? null);
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
   const { dialogStyles } = useResponsiveDialog({
-    maxWidth: 'sm:max-w-[500px]',
+    maxWidth: 'sm:max-w-[420px]',
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [multiplierToDelete, setMultiplierToDelete] =
@@ -69,6 +77,10 @@ export function MultipliersTable({
   const [multiplierToEdit, setMultiplierToEdit] = useState<Multiplier | null>(
     null
   );
+  const [selectedMultiplierIds, setSelectedMultiplierIds] = useState<
+    Set<string>
+  >(new Set());
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   const { execute: deleteMultiplier, isExecuting } = useAction(
     deleteMultiplierAction,
@@ -78,6 +90,7 @@ export function MultipliersTable({
           toast.success(data.message || 'Multiplier deleted successfully');
           setDeleteDialogOpen(false);
           setMultiplierToDelete(null);
+          setSelectedMultiplierIds(new Set());
         } else {
           toast.error(data?.error || 'Failed to delete multiplier');
         }
@@ -89,13 +102,42 @@ export function MultipliersTable({
     }
   );
 
+  const { execute: deleteBulkMultipliers, isExecuting: isBulkDeleting } =
+    useAction(deleteBulkMultipliersAction, {
+      onSuccess: ({ data }) => {
+        if (data?.success) {
+          toast.success(data.message || 'Multipliers deleted successfully');
+          setDeleteDialogOpen(false);
+          setSelectedMultiplierIds(new Set());
+          setIsBulkDelete(false);
+        } else {
+          toast.error(data?.error || 'Failed to delete multipliers');
+        }
+      },
+      onError: ({ error }) => {
+        const errorMessage = extractErrorMessage(error);
+        toast.error(errorMessage);
+      },
+    });
+
   const handleDeleteClick = (multiplier: Multiplier) => {
     setMultiplierToDelete(multiplier);
+    setIsBulkDelete(false);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (selectedMultiplierIds.size === 0) {
+      return;
+    }
+    setIsBulkDelete(true);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = () => {
-    if (multiplierToDelete) {
+    if (isBulkDelete) {
+      deleteBulkMultipliers({ ids: Array.from(selectedMultiplierIds) });
+    } else if (multiplierToDelete) {
       deleteMultiplier({ id: multiplierToDelete.id });
     }
   };
@@ -104,6 +146,29 @@ export function MultipliersTable({
     setDeleteDialogOpen(false);
     setMultiplierToDelete(null);
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedMultiplierIds(new Set(multipliers.map((m) => m.id)));
+    } else {
+      setSelectedMultiplierIds(new Set());
+    }
+  };
+
+  const handleSelectMultiplier = (multiplierId: string, checked: boolean) => {
+    const newSelected = new Set(selectedMultiplierIds);
+    if (checked) {
+      newSelected.add(multiplierId);
+    } else {
+      newSelected.delete(multiplierId);
+    }
+    setSelectedMultiplierIds(newSelected);
+  };
+
+  const allSelected =
+    multipliers.length > 0 &&
+    multipliers.every((m) => selectedMultiplierIds.has(m.id));
+  const someSelected = multipliers.some((m) => selectedMultiplierIds.has(m.id));
 
   const handleEditClick = (multiplier: Multiplier) => {
     setMultiplierToEdit(multiplier);
@@ -119,10 +184,42 @@ export function MultipliersTable({
 
   return (
     <>
+      {canBulkDelete && someSelected && (
+        <div className="mb-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-foreground">
+              {selectedMultiplierIds.size} multiplier
+              {selectedMultiplierIds.size === 1 ? '' : 's'} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleBulkDeleteClick}
+              disabled={isExecuting || isBulkDeleting}
+              className="flex w-full items-center justify-center gap-2 sm:w-auto"
+            >
+              <Trash className="h-4 w-4" />
+              Delete All
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-md border border-border bg-panel shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              {canBulkDelete && (
+                <TableHead className="w-[50px] bg-muted/50">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    disabled={isExecuting || isBulkDeleting}
+                  />
+                </TableHead>
+              )}
               <TableHead className="bg-muted/50 font-semibold text-foreground">
                 Multiplier Name
               </TableHead>
@@ -154,6 +251,20 @@ export function MultipliersTable({
                   className="transition-colors hover:bg-muted/30"
                   key={multiplier.id}
                 >
+                  {canBulkDelete && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedMultiplierIds.has(multiplier.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectMultiplier(
+                            multiplier.id,
+                            checked as boolean
+                          )
+                        }
+                        disabled={isExecuting || isBulkDeleting}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium text-foreground">
                     {multiplier.name}
                   </TableCell>
@@ -210,14 +321,16 @@ export function MultipliersTable({
           className={dialogStyles.className}
           style={dialogStyles.style}
           showCloseButton
+          transitionFrom="top-right"
         >
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Delete Multiplier
+              Delete {isBulkDelete ? 'Multipliers' : 'Multiplier'}
             </DialogTitle>
             <DialogDescription className="text-foreground">
-              Are you sure you want to delete &quot;{multiplierToDelete?.name}
-              &quot;? This action cannot be undone.
+              {isBulkDelete
+                ? `Are you sure you want to delete ${selectedMultiplierIds.size} multiplier${selectedMultiplierIds.size === 1 ? '' : 's'}? This action cannot be undone.`
+                : `Are you sure you want to delete "${multiplierToDelete?.name}"? This action cannot be undone.`}
             </DialogDescription>
             {typeof multiplierToDelete?.pirepCount === 'number' &&
               multiplierToDelete.pirepCount > 0 && (
@@ -234,10 +347,10 @@ export function MultipliersTable({
           </DialogHeader>
           <ResponsiveDialogFooter
             primaryButton={{
-              label: isExecuting ? 'Deleting...' : 'Delete',
+              label: isExecuting || isBulkDeleting ? 'Deleting...' : 'Delete',
               onClick: handleConfirmDelete,
-              disabled: isExecuting,
-              loading: isExecuting,
+              disabled: isExecuting || isBulkDeleting,
+              loading: isExecuting || isBulkDeleting,
               loadingLabel: 'Deleting...',
               className:
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
@@ -245,7 +358,7 @@ export function MultipliersTable({
             secondaryButton={{
               label: 'Cancel',
               onClick: handleCancelDelete,
-              disabled: isExecuting,
+              disabled: isExecuting || isBulkDeleting,
             }}
           />
         </DialogContent>

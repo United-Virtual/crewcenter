@@ -1,14 +1,18 @@
 'use client';
 
-import { Layers, MoreHorizontal } from 'lucide-react';
+import { Layers, MoreHorizontal, Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAction } from 'next-safe-action/hooks';
 import { parseAsInteger, useQueryState } from 'nuqs';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { deleteAircraftAction } from '@/actions/aircraft/delete-aircraft';
+import {
+  deleteAircraftAction,
+  deleteBulkAircraftAction,
+} from '@/actions/aircraft/delete-aircraft';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DataPagination } from '@/components/ui/data-pagination';
 import {
   Dialog,
@@ -33,7 +37,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useResponsiveDialog } from '@/hooks/use-responsive-dialog';
+import { useSession } from '@/lib/auth-client';
 import { extractErrorMessage } from '@/lib/error-handler';
+import { isOwnerOrAdmin } from '@/lib/roles';
 
 import EditAircraftDialog from './edit-aircraft-dialog';
 
@@ -51,8 +57,10 @@ export function AircraftList(props: { [key: string]: unknown }) {
   const limit = (props.limit as number) ?? 10;
   const router = useRouter();
   const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
+  const { data: session } = useSession();
+  const canBulkDelete = isOwnerOrAdmin(session?.user?.role ?? null);
   const { dialogStyles } = useResponsiveDialog({
-    maxWidth: 'sm:max-w-[500px]',
+    maxWidth: 'sm:max-w-[420px]',
   });
 
   const totalPages = Math.ceil(total / limit);
@@ -66,6 +74,10 @@ export function AircraftList(props: { [key: string]: unknown }) {
   const [aircraftToDelete, setAircraftToDelete] = useState<Aircraft | null>(
     null
   );
+  const [selectedAircraftIds, setSelectedAircraftIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   const { execute: deleteAircraft, isExecuting } = useAction(
     deleteAircraftAction,
@@ -75,6 +87,7 @@ export function AircraftList(props: { [key: string]: unknown }) {
           toast.success(data.message || 'Aircraft deleted successfully');
           setDeleteDialogOpen(false);
           setAircraftToDelete(null);
+          setSelectedAircraftIds(new Set());
         } else {
           toast.error(data?.error || 'Failed to delete aircraft');
         }
@@ -86,13 +99,42 @@ export function AircraftList(props: { [key: string]: unknown }) {
     }
   );
 
+  const { execute: deleteBulkAircraft, isExecuting: isBulkDeleting } =
+    useAction(deleteBulkAircraftAction, {
+      onSuccess: ({ data }) => {
+        if (data?.success) {
+          toast.success(data.message || 'Aircraft deleted successfully');
+          setDeleteDialogOpen(false);
+          setSelectedAircraftIds(new Set());
+          setIsBulkDelete(false);
+        } else {
+          toast.error(data?.error || 'Failed to delete aircraft');
+        }
+      },
+      onError: ({ error }) => {
+        const errorMessage = extractErrorMessage(error);
+        toast.error(errorMessage);
+      },
+    });
+
   const handleDeleteClick = (plane: Aircraft) => {
     setAircraftToDelete(plane);
+    setIsBulkDelete(false);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (selectedAircraftIds.size === 0) {
+      return;
+    }
+    setIsBulkDelete(true);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = () => {
-    if (aircraftToDelete) {
+    if (isBulkDelete) {
+      deleteBulkAircraft({ ids: Array.from(selectedAircraftIds) });
+    } else if (aircraftToDelete) {
       deleteAircraft({ id: aircraftToDelete.id });
     }
   };
@@ -101,6 +143,28 @@ export function AircraftList(props: { [key: string]: unknown }) {
     setDeleteDialogOpen(false);
     setAircraftToDelete(null);
   };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedAircraftIds(new Set(aircraft.map((a) => a.id)));
+    } else {
+      setSelectedAircraftIds(new Set());
+    }
+  };
+
+  const handleSelectAircraft = (aircraftId: string, checked: boolean) => {
+    const newSelected = new Set(selectedAircraftIds);
+    if (checked) {
+      newSelected.add(aircraftId);
+    } else {
+      newSelected.delete(aircraftId);
+    }
+    setSelectedAircraftIds(newSelected);
+  };
+
+  const allSelected =
+    aircraft.length > 0 && aircraft.every((a) => selectedAircraftIds.has(a.id));
+  const someSelected = aircraft.some((a) => selectedAircraftIds.has(a.id));
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [aircraftToEdit, setAircraftToEdit] = useState<Aircraft | null>(null);
@@ -112,10 +176,41 @@ export function AircraftList(props: { [key: string]: unknown }) {
 
   return (
     <>
+      {canBulkDelete && someSelected && (
+        <div className="mb-4 flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-foreground">
+              {selectedAircraftIds.size} aircraft selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleBulkDeleteClick}
+              disabled={isExecuting || isBulkDeleting}
+              className="flex w-full items-center justify-center gap-2 sm:w-auto"
+            >
+              <Trash className="h-4 w-4" />
+              Delete All
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-md border border-border bg-panel shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              {canBulkDelete && (
+                <TableHead className="w-[50px] bg-muted/50">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                    disabled={isExecuting || isBulkDeleting}
+                  />
+                </TableHead>
+              )}
               <TableHead className="bg-muted/50 font-semibold text-foreground">
                 Aircraft Name
               </TableHead>
@@ -147,6 +242,17 @@ export function AircraftList(props: { [key: string]: unknown }) {
                   className="transition-colors hover:bg-muted/30"
                   key={plane.id}
                 >
+                  {canBulkDelete && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedAircraftIds.has(plane.id)}
+                        onCheckedChange={(checked) =>
+                          handleSelectAircraft(plane.id, checked as boolean)
+                        }
+                        disabled={isExecuting || isBulkDeleting}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium text-foreground">
                     {plane.name}
                   </TableCell>
@@ -199,17 +305,25 @@ export function AircraftList(props: { [key: string]: unknown }) {
           className={dialogStyles.className}
           style={dialogStyles.style}
           showCloseButton
+          transitionFrom="top-right"
         >
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Delete Aircraft
+              Delete {isBulkDelete ? 'Aircraft' : 'Aircraft'}
             </DialogTitle>
             <DialogDescription className="space-y-2 text-foreground">
-              <span>
-                Are you sure you want to delete &quot;{aircraftToDelete?.name} -{' '}
-                {aircraftToDelete?.livery}
-                &quot;? This action cannot be undone.
-              </span>
+              {isBulkDelete ? (
+                <span>
+                  Are you sure you want to delete {selectedAircraftIds.size}{' '}
+                  aircraft? This action cannot be undone.
+                </span>
+              ) : (
+                <span>
+                  Are you sure you want to delete &quot;
+                  {aircraftToDelete?.name} - {aircraftToDelete?.livery}
+                  &quot;? This action cannot be undone.
+                </span>
+              )}
             </DialogDescription>
             {typeof aircraftToDelete?.pirepCount === 'number' &&
               aircraftToDelete.pirepCount > 0 && (
@@ -226,10 +340,10 @@ export function AircraftList(props: { [key: string]: unknown }) {
           </DialogHeader>
           <ResponsiveDialogFooter
             primaryButton={{
-              label: isExecuting ? 'Deleting...' : 'Delete',
+              label: isExecuting || isBulkDeleting ? 'Deleting...' : 'Delete',
               onClick: handleConfirmDelete,
-              disabled: isExecuting,
-              loading: isExecuting,
+              disabled: isExecuting || isBulkDeleting,
+              loading: isExecuting || isBulkDeleting,
               loadingLabel: 'Deleting...',
               className:
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
@@ -237,7 +351,7 @@ export function AircraftList(props: { [key: string]: unknown }) {
             secondaryButton={{
               label: 'Cancel',
               onClick: handleCancelDelete,
-              disabled: isExecuting,
+              disabled: isExecuting || isBulkDeleting,
             }}
           />
         </DialogContent>
