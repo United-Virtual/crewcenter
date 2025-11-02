@@ -297,7 +297,7 @@ export function AircraftList(props: { [key: string]: unknown }) {
           className={dialogStyles.className}
           style={dialogStyles.style}
           showCloseButton
-          transitionFrom="bottom-left"
+          transitionFrom="top-right"
         >
           <DialogHeader>
             <DialogTitle className="text-foreground">

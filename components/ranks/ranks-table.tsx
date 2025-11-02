@@ -309,7 +309,7 @@ export function RanksTable({ ranks, total, limit = 10 }: RanksTableProps) {
           className={dialogStyles.className}
           style={dialogStyles.style}
           showCloseButton
-          transitionFrom="bottom-left"
+          transitionFrom="top-right"
         >
           <DialogHeader>
             <DialogTitle className="text-foreground">
