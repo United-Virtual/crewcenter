@@ -370,4 +370,65 @@ async function filterRoutesAdvanced(
   };
 }
 
-export { filterRoutesAdvanced, getRouteById, getRoutesPaginated };
+async function findRouteIdsByFilters(
+  filters: RouteFilterCondition[]
+): Promise<string[]> {
+  const airlineIsValues: string[] = [];
+  const airlineIsNotValues: string[] = [];
+
+  const otherFilters: RouteFilterCondition[] = [];
+  for (const f of filters) {
+    if (f.field === 'airline' && f.value !== undefined && f.value !== '') {
+      const v = String(f.value);
+      if (f.operator === 'is') {
+        airlineIsValues.push(v);
+      } else if (f.operator === 'is_not') {
+        airlineIsNotValues.push(v);
+      } else {
+        otherFilters.push(f);
+      }
+    } else {
+      otherFilters.push(f);
+    }
+  }
+
+  const conditions: SQL<boolean>[] = otherFilters.map(buildFieldCondition);
+
+  if (airlineIsValues.length > 0) {
+    const uniq = Array.from(new Set(airlineIsValues));
+    const orConds = uniq.map(
+      (v) => sql<boolean>`${aircraft.livery} = ${v} COLLATE NOCASE`
+    );
+    conditions.push(
+      createAircraftWithLiverySubquery(combineOrConditions(orConds))
+    );
+  }
+
+  if (airlineIsNotValues.length > 0) {
+    const uniq = Array.from(new Set(airlineIsNotValues));
+    const orConds = uniq.map(
+      (v) => sql<boolean>`${aircraft.livery} = ${v} COLLATE NOCASE`
+    );
+    conditions.push(
+      createAircraftWithLiveryNotSubquery(combineOrConditions(orConds))
+    );
+  }
+  const combinedCondition = combineConditions(conditions);
+
+  const result = await db
+    .select({ id: routes.id })
+    .from(routes)
+    .leftJoin(routesFlightNumbers, eq(routes.id, routesFlightNumbers.routeId))
+    .leftJoin(routeAircraft, eq(routes.id, routeAircraft.routeId))
+    .where(combinedCondition)
+    .groupBy(routes.id);
+
+  return result.map((r) => r.id);
+}
+
+export {
+  filterRoutesAdvanced,
+  findRouteIdsByFilters,
+  getRouteById,
+  getRoutesPaginated,
+};

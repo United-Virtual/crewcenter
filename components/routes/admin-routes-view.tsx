@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 import {
   deleteBulkRoutesAction,
+  deleteFilteredRoutesAction,
   deleteRouteAction,
 } from '@/actions/routes/delete-route';
 import { fetchRoutesAction } from '@/actions/routes/search-routes';
@@ -132,7 +133,9 @@ export function AdminRoutesView({
   const [selectedRouteIds, setSelectedRouteIds] = useState<Set<string>>(
     new Set()
   );
-  const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<
+    'single' | 'selected' | 'filtered'
+  >('single');
 
   const totalPages = Math.ceil(totalState / limit);
 
@@ -185,7 +188,7 @@ export function AdminRoutesView({
         toast.success(data?.message || 'Routes deleted');
         setDeleteDialogOpen(false);
         setSelectedRouteIds(new Set());
-        setIsBulkDelete(false);
+        setDeleteMode('single');
         // Refresh the routes after deletion
         fetchRoutes({ page, limit, filters: filtersFromParams });
       },
@@ -195,6 +198,21 @@ export function AdminRoutesView({
     }
   );
 
+  const { execute: deleteFilteredRoutes, isExecuting: isDeletingFiltered } =
+    useAction(deleteFilteredRoutesAction, {
+      onSuccess: ({ data }) => {
+        toast.success(data?.message || 'Routes deleted');
+        setDeleteDialogOpen(false);
+        setSelectedRouteIds(new Set());
+        setDeleteMode('single');
+        // Refresh the routes after deletion
+        fetchRoutes({ page, limit, filters: filtersFromParams });
+      },
+      onError: ({ error }) => {
+        toast.error(error.serverError || 'Failed to delete routes');
+      },
+    });
+
   useEffect(() => {
     // Fetch routes whenever page changes or filters in URL change
     fetchRoutes({ page, limit, filters: filtersFromParams });
@@ -202,7 +220,7 @@ export function AdminRoutesView({
 
   const handleDeleteClick = (route: RouteItem) => {
     setRouteToDelete(route);
-    setIsBulkDelete(false);
+    setDeleteMode('single');
     setDeleteDialogOpen(true);
   };
 
@@ -210,12 +228,19 @@ export function AdminRoutesView({
     if (selectedRouteIds.size === 0) {
       return;
     }
-    setIsBulkDelete(true);
+    setDeleteMode('selected');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleFilteredDeleteClick = () => {
+    setDeleteMode('filtered');
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (isBulkDelete) {
+    if (deleteMode === 'filtered') {
+      deleteFilteredRoutes({ filters: filtersFromParams });
+    } else if (deleteMode === 'selected') {
       deleteBulkRoutes({ ids: Array.from(selectedRouteIds) });
     } else if (routeToDelete) {
       deleteRoute({ id: routeToDelete.id });
@@ -323,16 +348,26 @@ export function AdminRoutesView({
               {selectedRouteIds.size === 1 ? '' : 's'} selected
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="destructive"
               onClick={handleBulkDeleteClick}
-              disabled={isDeleting || isBulkDeleting}
+              disabled={isDeleting || isBulkDeleting || isDeletingFiltered}
               className="flex w-full items-center justify-center gap-2 sm:w-auto"
             >
               <Trash className="h-4 w-4" />
-              Delete All
+              Delete Selected
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleFilteredDeleteClick}
+              disabled={isDeleting || isBulkDeleting || isDeletingFiltered}
+              className="flex w-full items-center justify-center gap-2 sm:w-auto"
+            >
+              <Trash className="h-4 w-4" />
+              Delete All Filtered ({totalState})
             </Button>
           </div>
         </div>
@@ -348,7 +383,9 @@ export function AdminRoutesView({
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={handleSelectAll}
-                      disabled={isDeleting || isBulkDeleting}
+                      disabled={
+                        isDeleting || isBulkDeleting || isDeletingFiltered
+                      }
                     />
                   </TableHead>
                 )}
@@ -393,7 +430,9 @@ export function AdminRoutesView({
                           onCheckedChange={(checked) =>
                             handleSelectRoute(route.id, checked as boolean)
                           }
-                          disabled={isDeleting || isBulkDeleting}
+                          disabled={
+                            isDeleting || isBulkDeleting || isDeletingFiltered
+                          }
                         />
                       </TableCell>
                     )}
@@ -484,20 +523,30 @@ export function AdminRoutesView({
         >
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Delete {isBulkDelete ? 'Routes' : 'Route'}
+              Delete{' '}
+              {deleteMode === 'filtered'
+                ? `All ${totalState} Filtered Route${totalState === 1 ? '' : 's'}`
+                : deleteMode === 'selected'
+                  ? 'Routes'
+                  : 'Route'}
             </DialogTitle>
             <DialogDescription className="text-foreground">
-              {isBulkDelete
-                ? `Are you sure you want to delete ${selectedRouteIds.size} route${selectedRouteIds.size === 1 ? '' : 's'}? This action cannot be undone.`
-                : 'Are you sure you want to delete this route?'}
+              {deleteMode === 'filtered'
+                ? `Are you sure you want to delete all ${totalState} filtered route${totalState === 1 ? '' : 's'}? This action cannot be undone.`
+                : deleteMode === 'selected'
+                  ? `Are you sure you want to delete ${selectedRouteIds.size} route${selectedRouteIds.size === 1 ? '' : 's'}? This action cannot be undone.`
+                  : 'Are you sure you want to delete this route? This action cannot be undone.'}
             </DialogDescription>
           </DialogHeader>
           <ResponsiveDialogFooter
             primaryButton={{
-              label: isDeleting || isBulkDeleting ? 'Deleting...' : 'Delete',
+              label:
+                isDeleting || isBulkDeleting || isDeletingFiltered
+                  ? 'Deleting...'
+                  : 'Delete',
               onClick: confirmDelete,
-              disabled: isDeleting || isBulkDeleting,
-              loading: isDeleting || isBulkDeleting,
+              disabled: isDeleting || isBulkDeleting || isDeletingFiltered,
+              loading: isDeleting || isBulkDeleting || isDeletingFiltered,
               loadingLabel: 'Deleting...',
               className:
                 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
@@ -505,7 +554,7 @@ export function AdminRoutesView({
             secondaryButton={{
               label: 'Cancel',
               onClick: () => setDeleteDialogOpen(false),
-              disabled: isDeleting || isBulkDeleting,
+              disabled: isDeleting || isBulkDeleting || isDeletingFiltered,
             }}
           />
         </DialogContent>

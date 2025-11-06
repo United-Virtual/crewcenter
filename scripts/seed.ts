@@ -238,6 +238,15 @@ const main = async () => {
           maxValue: airline.callsignMaxRange,
           isUnique: true,
         }),
+        discordUsername: f.firstName({ isUnique: true }),
+        discourseUsername: f.weightedRandom([
+          { weight: 0.7, value: f.default({ defaultValue: null }) },
+          { weight: 0.3, value: f.lastName({ isUnique: true }) },
+        ]),
+        infiniteFlightId: f.weightedRandom([
+          { weight: 0.8, value: f.default({ defaultValue: null }) },
+          { weight: 0.2, value: f.uuid() },
+        ]),
         role: f.weightedRandom([
           { weight: 0.95, value: f.default({ defaultValue: null }) },
           { weight: 0.05, value: f.default({ defaultValue: 'admin' }) },
@@ -370,10 +379,44 @@ const main = async () => {
   if (rankAircraftLinks.length > 0) {
     await db.insert(schema.rankAircraft).values(rankAircraftLinks);
   }
+
+  logger.info('Linking routes to aircraft (many-to-many)...');
+  const allRoutes = await db
+    .select({ id: schema.routes.id })
+    .from(schema.routes);
+
+  const routeAircraftLinks: (typeof schema.routeAircraft.$inferInsert)[] = [];
+
+  for (const route of allRoutes) {
+    const numAircraft = Math.floor(Math.random() * 3) + 1;
+    const selectedAircraft = allAircraft
+      .sort(() => Math.random() - 0.5)
+      .slice(0, numAircraft);
+
+    for (const aircraft of selectedAircraft) {
+      routeAircraftLinks.push({
+        id: `${route.id}_${aircraft.id}`,
+        routeId: route.id,
+        aircraftId: aircraft.id,
+      });
+    }
+  }
+
+  if (routeAircraftLinks.length > 0) {
+    const chunkSize = 100;
+    for (let i = 0; i < routeAircraftLinks.length; i += chunkSize) {
+      const batch = routeAircraftLinks.slice(i, i + chunkSize);
+      await db.insert(schema.routeAircraft).values(batch);
+    }
+    logger.info(
+      `  - Linked ${routeAircraftLinks.length} route-aircraft pairs.`
+    );
+  }
 };
 
 main()
   .catch((err) => {
+    console.error('Seeding failed:', err);
     logger.error({ error: err }, '❌ Seeding failed:');
     process.exit(1);
   })
