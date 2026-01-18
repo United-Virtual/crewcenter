@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.7](https://github.com/flyaltitudeapp/altitude/compare/0.4.6...0.4.7) (2026-01-18)
+
+### 🐛 Bug Fixes
+
+- update to next 15.4.8 ([9059c47](https://github.com/flyaltitudeapp/altitude/commit/9059c478dd8bfabef07111981c6aa2efd89c224d))
+
 ## [0.4.6](https://github.com/flyaltitudeapp/altitude/compare/0.4.5...0.4.6) (2025-11-06)
 
 ### 🐛 Bug Fixes
