@@ -1,7 +1,15 @@
 import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { type Aircraft, aircraft, rankAircraft, ranks } from '@/db/schema';
+import { getUserRank } from '@/db/queries/ranks';
+import {
+  type Aircraft,
+  aircraft,
+  rankAircraft,
+  ranks,
+  typeRatingAircraft,
+  userTypeRatings,
+} from '@/db/schema';
 
 async function getAircraft(): Promise<Aircraft[]> {
   const result = await db.select().from(aircraft).orderBy(aircraft.name);
@@ -101,9 +109,37 @@ async function getAllowedAircraftForRank(rankId: string): Promise<Aircraft[]> {
   return uniqueAircraft as Aircraft[];
 }
 
+async function getAllowedAircraftForUser(
+  userId: string,
+  flightTimeMinutes: number
+): Promise<Aircraft[]> {
+  const assignedRows = await db
+    .select({ aircraftId: typeRatingAircraft.aircraftId })
+    .from(typeRatingAircraft)
+    .innerJoin(
+      userTypeRatings,
+      eq(userTypeRatings.typeRatingId, typeRatingAircraft.typeRatingId)
+    )
+    .where(eq(userTypeRatings.userId, userId));
+
+  if (assignedRows.length === 0) {
+    return [];
+  }
+
+  const assignedIds = new Set(assignedRows.map((row) => row.aircraftId));
+
+  const rank = await getUserRank(flightTimeMinutes);
+  const baseAircraft = rank
+    ? await getAllowedAircraftForRank(rank.id)
+    : await getAircraft();
+
+  return baseAircraft.filter((ac) => assignedIds.has(ac.id));
+}
+
 export {
   getAircraft,
   getAircraftById,
   getAircraftPaginated,
   getAllowedAircraftForRank,
+  getAllowedAircraftForUser,
 };

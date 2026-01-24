@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { getAllowedAircraftForRank, getUserRank } from '@/db/queries';
+import { getAllowedAircraftForUser, getUserRank } from '@/db/queries';
 import { getMultiplierValue } from '@/db/queries/multipliers';
 import { getFlightTimeForUser } from '@/db/queries/users';
 import { aircraft, airline, pireps, users } from '@/db/schema';
@@ -106,14 +106,15 @@ async function validateAircraftPermission(
   aircraftId: string
 ): Promise<void> {
   const currentFlightTime = await getFlightTimeForUser(userId);
-  const rank = await getUserRank(currentFlightTime);
+  const [rank, allowedAircraft] = await Promise.all([
+    getUserRank(currentFlightTime),
+    getAllowedAircraftForUser(userId, currentFlightTime),
+  ]);
 
-  // If no rank exists, allow all aircraft
-  if (!rank) {
-    return;
+  if (allowedAircraft.length === 0) {
+    throw new Error('No aircrafts found.');
   }
 
-  const allowedAircraft = await getAllowedAircraftForRank(rank.id);
   const isAircraftAllowed = allowedAircraft.some((ac) => ac.id === aircraftId);
 
   if (!isAircraftAllowed) {
@@ -126,8 +127,9 @@ async function validateAircraftPermission(
     const aircraftName = aircraftData
       ? `${aircraftData.name} (${aircraftData.livery})`
       : 'Unknown Aircraft';
+    const rankLabel = rank ? ` with your current rank (${rank.name})` : '';
     throw new Error(
-      `You are not authorized to fly ${aircraftName} with your current rank (${rank.name}).`
+      `You are not authorized to fly ${aircraftName} with your current type ratings${rankLabel}.`
     );
   }
 }

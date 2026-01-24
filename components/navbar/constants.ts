@@ -43,8 +43,11 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     key: 'fleet',
     label: 'Fleet',
-    href: '/admin/fleet',
-    roles: ['fleet'],
+    roles: ['admin'],
+    children: [
+      { key: 'fleet', label: 'Fleet', href: '/admin/fleet' },
+      { key: 'typeratings', label: 'Type Ratings', href: '/admin/typeratings' },
+    ],
   },
   {
     key: 'multipliers',
@@ -77,21 +80,8 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     roles: ['users'],
   },
   {
-    key: 'inactivity',
-    label: 'Inactivity',
-    href: '/admin/inactivity',
-    roles: ['users'],
-  },
-  {
-    key: 'leave',
-    label: 'Leave',
-    href: '/admin/leave',
-    roles: ['users'],
-  },
-  {
     key: 'users',
     label: 'Users',
-    href: '/admin/users',
     roles: ['users'],
     children: [
       { key: 'users', label: 'Users', href: '/admin/users' },
@@ -99,6 +89,16 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
         key: 'applications',
         label: 'Applications',
         href: '/admin/applications',
+      },
+      {
+        key: 'inactivity',
+        label: 'Inactivity',
+        href: '/admin/inactivity',
+      },
+      {
+        key: 'leave',
+        label: 'Leave',
+        href: '/admin/leave',
       },
     ],
   },

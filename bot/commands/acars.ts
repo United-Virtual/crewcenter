@@ -16,9 +16,9 @@ import { and, eq } from 'drizzle-orm';
 
 import { findUserByDiscord } from '@/bot/utils/user-lookup';
 import { db } from '@/db';
+import { getAllowedAircraftForUser } from '@/db/queries/aircraft';
 import { getMultipliers } from '@/db/queries/multipliers';
-import { getUserRank } from '@/db/queries/ranks';
-import { aircraft, airline, rankAircraft } from '@/db/schema';
+import { aircraft, airline } from '@/db/schema';
 import {
   createPirep,
   sendPirepWebhookNotification,
@@ -99,33 +99,22 @@ async function validateAircraftAccess(
     };
   }
 
-  const userRank = await getUserRank(flightTime);
-  if (!userRank) {
+  const allowedAircraft = await getAllowedAircraftForUser(userId, flightTime);
+  if (allowedAircraft.length === 0) {
     return {
       canFly: false,
-      reason: 'Unable to determine your rank. Please contact an administrator.',
+      reason: 'No aircrafts found.',
     };
   }
 
-  if (userRank.allowAllAircraft) {
-    return { canFly: true };
-  }
+  const isAircraftAllowed = allowedAircraft.some(
+    (ac) => ac.id === existingAircraft.id
+  );
 
-  const rankAircraftAccess = await db
-    .select()
-    .from(rankAircraft)
-    .where(
-      and(
-        eq(rankAircraft.rankId, userRank.id),
-        eq(rankAircraft.aircraftId, existingAircraft.id)
-      )
-    )
-    .get();
-
-  if (!rankAircraftAccess) {
+  if (!isAircraftAllowed) {
     return {
       canFly: false,
-      reason: `Your rank (${userRank.name}) does not have access to ${aircraftName} (${liveryName}).`,
+      reason: `Your assigned type ratings do not allow ${aircraftName} (${liveryName}).`,
     };
   }
 

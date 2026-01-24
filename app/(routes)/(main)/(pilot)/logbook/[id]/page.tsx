@@ -2,10 +2,9 @@ import { notFound, redirect } from 'next/navigation';
 
 import { PirepDetails } from '@/components/logbook/pirep-details';
 import { getAirportInfoByIcao, getPirepById } from '@/db/queries';
-import { getAllowedAircraftForRank } from '@/db/queries/aircraft';
+import { getAllowedAircraftForUser } from '@/db/queries/aircraft';
 import { getAirline } from '@/db/queries/airline';
 import { getMultipliers } from '@/db/queries/multipliers';
-import { getUserRank } from '@/db/queries/ranks';
 import { getFlightTimeForUser } from '@/db/queries/users';
 import { authCheck } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
@@ -31,17 +30,16 @@ export default async function PirepDetailPage({
 
   const { pirep, aircraft, multiplier } = pirepData;
 
-  // Get user's flight time and rank to determine allowed aircraft
+  // Get user's flight time to determine allowed aircraft
   const userFlightTime = await getFlightTimeForUser(session.user.id);
-  const userRank = await getUserRank(userFlightTime);
 
   // Get additional data for editing functionality
   const [departureInfo, arrivalInfo, aircraftList, multipliersList, airline] =
     await Promise.all([
       getAirportInfoByIcao(pirep.departureIcao),
       getAirportInfoByIcao(pirep.arrivalIcao),
-      // Get aircraft based on user's rank - only allowed aircraft for this user
-      userRank ? getAllowedAircraftForRank(userRank.id) : [],
+      // Get aircraft based on user's rank and type ratings
+      getAllowedAircraftForUser(session.user.id, userFlightTime),
       getMultipliers(),
       getAirline(),
     ]);

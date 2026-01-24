@@ -384,6 +384,73 @@ export const rankAircraft = sqliteTable(
   ]
 );
 
+export const typeRatings = sqliteTable(
+  'type_ratings',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [t.index('type_ratings_name_index').on(table.name)]
+);
+
+export const typeRatingAircraft = sqliteTable(
+  'type_rating_aircraft',
+  {
+    id: text('id').primaryKey(),
+    typeRatingId: text('type_rating_id')
+      .notNull()
+      .references(() => typeRatings.id, { onDelete: 'cascade' }),
+    aircraftId: text('aircraft_id')
+      .notNull()
+      .references(() => aircraft.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    t.index('type_rating_aircraft_type_rating_id_index').on(table.typeRatingId),
+    t.index('type_rating_aircraft_aircraft_id_index').on(table.aircraftId),
+    t
+      .uniqueIndex('type_rating_aircraft_unique')
+      .on(table.typeRatingId, table.aircraftId),
+  ]
+);
+
+export const userTypeRatings = sqliteTable(
+  'user_type_ratings',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    typeRatingId: text('type_rating_id')
+      .notNull()
+      .references(() => typeRatings.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    t.index('user_type_ratings_user_id_index').on(table.userId),
+    t.index('user_type_ratings_type_rating_id_index').on(table.typeRatingId),
+    t
+      .uniqueIndex('user_type_ratings_unique')
+      .on(table.userId, table.typeRatingId),
+  ]
+);
+
 export const leaveRequests = sqliteTable(
   'leave_requests',
   {
@@ -627,6 +694,15 @@ export type NewRank = InferInsertModel<typeof ranks>;
 
 export type RankAircraft = InferSelectModel<typeof rankAircraft>;
 export type NewRankAircraft = InferInsertModel<typeof rankAircraft>;
+
+export type TypeRating = InferSelectModel<typeof typeRatings>;
+export type NewTypeRating = InferInsertModel<typeof typeRatings>;
+
+export type TypeRatingAircraft = InferSelectModel<typeof typeRatingAircraft>;
+export type NewTypeRatingAircraft = InferInsertModel<typeof typeRatingAircraft>;
+
+export type UserTypeRating = InferSelectModel<typeof userTypeRatings>;
+export type NewUserTypeRating = InferInsertModel<typeof userTypeRatings>;
 
 export type LeaveRequest = InferSelectModel<typeof leaveRequests>;
 export type NewLeaveRequest = InferInsertModel<typeof leaveRequests>;

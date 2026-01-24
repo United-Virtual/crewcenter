@@ -4,8 +4,8 @@ import { useAction } from 'next-safe-action/hooks';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { editRankAction } from '@/actions/ranks/edit-rank';
-import { getRankFormDataAction } from '@/actions/ranks/get-rank-form-data';
+import { editTypeRatingAction } from '@/actions/typerating/edit-typerating';
+import { getTypeRatingFormDataAction } from '@/actions/typerating/get-typerating-form-data';
 import {
   Dialog,
   DialogContent,
@@ -20,26 +20,23 @@ import {
   extractActionErrorMessage,
 } from '@/lib/error-handler';
 
-import { RankForm } from './create-rank-dialog';
+import { TypeRatingForm } from './create-typerating-dialog';
 
-interface EditRankDialogProps {
+interface EditTypeRatingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rank: {
+  typeRating: {
     id: string;
     name: string;
-    minimumFlightTime: number;
-    maximumFlightTime: number | null;
-    allowAllAircraft: boolean;
     aircraftIds: string[];
   };
 }
 
-export default function EditRankDialog({
+export default function EditTypeRatingDialog({
   open,
   onOpenChange,
-  rank,
-}: EditRankDialogProps) {
+  typeRating,
+}: EditTypeRatingDialogProps) {
   const [aircraft, setAircraft] = useState<
     { id: string; name: string; livery: string }[] | null
   >(null);
@@ -48,7 +45,7 @@ export default function EditRankDialog({
     maxWidth: 'sm:max-w-[500px]',
   });
 
-  const { execute, isPending } = useAction(editRankAction, {
+  const { execute, isPending } = useAction(editTypeRatingAction, {
     onSuccess: (args) => {
       const { data } = args;
       if (data?.success) {
@@ -59,7 +56,7 @@ export default function EditRankDialog({
     onError: (errorResponse) => {
       const errorMessage = extractActionErrorMessage(
         errorResponse as ActionErrorResponse,
-        'Failed to update rank'
+        'Failed to update type rating'
       );
       toast.error(errorMessage);
     },
@@ -68,7 +65,7 @@ export default function EditRankDialog({
   useEffect(() => {
     if (open && aircraft === null && !isLoadingData) {
       setIsLoadingData(true);
-      getRankFormDataAction()
+      getTypeRatingFormDataAction()
         .then((result) => {
           if (result?.data) {
             setAircraft(result.data.aircraft);
@@ -97,25 +94,17 @@ export default function EditRankDialog({
         showCloseButton
       >
         <DialogHeader>
-          <DialogTitle className="text-foreground">Edit Rank</DialogTitle>
+          <DialogTitle className="text-foreground">
+            Edit Type Rating
+          </DialogTitle>
           <DialogDescription className="text-foreground">
-            Update rank details and aircraft permissions.
+            Update type rating details and aircraft permissions.
           </DialogDescription>
         </DialogHeader>
         {isLoadingData || aircraft === null ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-4 w-32" />
               <Skeleton className="h-10 w-full" />
             </div>
             <div className="space-y-3">
@@ -124,40 +113,15 @@ export default function EditRankDialog({
             </div>
           </div>
         ) : (
-          <RankForm
+          <TypeRatingForm
             initialValues={{
-              name: rank.name,
-              minimumFlightTime: String(rank.minimumFlightTime),
-              maximumFlightTime:
-                rank.maximumFlightTime !== null
-                  ? String(rank.maximumFlightTime)
-                  : '',
-              allowAllAircraft: rank.allowAllAircraft,
-              selectedAircraftIds: rank.aircraftIds,
+              name: typeRating.name,
+              selectedAircraftIds: typeRating.aircraftIds,
             }}
-            onSubmit={({
-              name,
-              minimumFlightTime,
-              maximumFlightTime,
-              allowAllAircraft,
-              selectedAircraftIds,
-            }: {
-              name: string;
-              minimumFlightTime: string;
-              maximumFlightTime: string;
-              allowAllAircraft: boolean;
-              selectedAircraftIds: string[];
-            }) => {
-              const minFlightTime = Number(minimumFlightTime);
-              const maxFlightTime = maximumFlightTime.trim()
-                ? Number(maximumFlightTime)
-                : null;
+            onSubmit={({ name, selectedAircraftIds }) => {
               execute({
-                id: rank.id,
+                id: typeRating.id,
                 name: name.trim(),
-                minimumFlightTime: minFlightTime,
-                maximumFlightTime: maxFlightTime,
-                allowAllAircraft,
                 aircraftIds: selectedAircraftIds,
               });
             }}
