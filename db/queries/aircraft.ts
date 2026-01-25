@@ -8,8 +8,10 @@ import {
   rankAircraft,
   ranks,
   typeRatingAircraft,
+  users,
   userTypeRatings,
 } from '@/db/schema';
+import { ADMIN_ROLE, OWNER_ROLE, parseRolesField } from '@/lib/roles';
 
 async function getAircraft(): Promise<Aircraft[]> {
   const result = await db.select().from(aircraft).orderBy(aircraft.name);
@@ -113,6 +115,21 @@ async function getAllowedAircraftForUser(
   userId: string,
   flightTimeMinutes: number
 ): Promise<Aircraft[]> {
+  const user = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+
+  if (!user) {
+    return [];
+  }
+
+  const roles = parseRolesField(user.role);
+  if (roles.includes(ADMIN_ROLE) || roles.includes(OWNER_ROLE)) {
+    return getAircraft();
+  }
+
   const assignedRows = await db
     .select({ aircraftId: typeRatingAircraft.aircraftId })
     .from(typeRatingAircraft)
