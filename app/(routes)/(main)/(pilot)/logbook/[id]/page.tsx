@@ -2,9 +2,14 @@ import { notFound, redirect } from 'next/navigation';
 
 import { PirepDetails } from '@/components/logbook/pirep-details';
 import { getAirportInfoByIcao, getPirepById } from '@/db/queries';
-import { getAllowedAircraftForUser } from '@/db/queries/aircraft';
-import { getAirline } from '@/db/queries/airline';
-import { getMultipliers } from '@/db/queries/multipliers';
+import {
+  getAircraft,
+  getAirline,
+  getAllowedAircraftForRank,
+  getAllowedAircraftForUser,
+  getMultipliers,
+  getUserRank,
+} from '@/db/queries';
 import { getFlightTimeForUser } from '@/db/queries/users';
 import { authCheck } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
@@ -34,15 +39,21 @@ export default async function PirepDetailPage({
   const userFlightTime = await getFlightTimeForUser(session.user.id);
 
   // Get additional data for editing functionality
-  const [departureInfo, arrivalInfo, aircraftList, multipliersList, airline] =
+  const [departureInfo, arrivalInfo, multipliersList, airline, userRank] =
     await Promise.all([
       getAirportInfoByIcao(pirep.departureIcao),
       getAirportInfoByIcao(pirep.arrivalIcao),
-      // Get aircraft based on user's rank and type ratings
-      getAllowedAircraftForUser(session.user.id, userFlightTime),
       getMultipliers(),
       getAirline(),
+      getUserRank(userFlightTime),
     ]);
+
+  const enforceTypeRatings = airline?.enforceTypeRatings ?? false;
+  const aircraftList = enforceTypeRatings
+    ? await getAllowedAircraftForUser(session.user.id, userFlightTime)
+    : userRank
+      ? await getAllowedAircraftForRank(userRank.id)
+      : await getAircraft();
 
   // User can only edit their own PIREPs when they are in pending status
   const isEditable = pirep.status === 'pending';

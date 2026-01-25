@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 
 import { PirepForm } from '@/components/pireps/pirep-form';
 import {
+  getAircraft,
+  getAirline,
+  getAllowedAircraftForRank,
   getAllowedAircraftForUser,
   getFlightTimeForUser,
   getMultipliers,
@@ -20,11 +23,18 @@ export default async function PirepsPage() {
 
   const flightTime = await getFlightTimeForUser(session.user.id);
 
-  const [aircraft, multipliers, userRank] = await Promise.all([
-    getAllowedAircraftForUser(session.user.id, flightTime),
+  const [airline, multipliers, userRank] = await Promise.all([
+    getAirline(),
     getMultipliers(),
     getUserRank(flightTime),
   ]);
+
+  const enforceTypeRatings = airline?.enforceTypeRatings ?? false;
+  const aircraft = enforceTypeRatings
+    ? await getAllowedAircraftForUser(session.user.id, flightTime)
+    : userRank
+      ? await getAllowedAircraftForRank(userRank.id)
+      : await getAircraft();
 
   return (
     <div className="space-y-6">

@@ -156,6 +156,9 @@ export const airline = sqliteTable(
     liveFilterSuffix: text('live_filter_suffix'),
     liveFilterVirtualOrg: text('live_filter_virtual_org'),
     liveFilterType: text('live_filter_type').$defaultFn(() => 'virtual_org'),
+    enforceTypeRatings: integer('enforce_type_ratings', { mode: 'boolean' })
+      .$defaultFn(() => false)
+      .notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .$defaultFn(() => new Date())
       .notNull(),

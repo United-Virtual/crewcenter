@@ -14,6 +14,7 @@ export interface AirlineUpdateData {
   leaveRequestWebhookUrl?: string | null;
   inactivityWebhookUrl?: string | null;
   inactivityPeriod?: number;
+  enforceTypeRatings?: boolean;
   callsignMinRange?: number;
   callsignMaxRange?: number;
   liveFilterSuffix?: string | null;
@@ -75,6 +76,9 @@ export async function updateAirlineRecord(
   }
   if (data.inactivityPeriod !== undefined) {
     updateData.inactivityPeriod = data.inactivityPeriod;
+  }
+  if (data.enforceTypeRatings !== undefined) {
+    updateData.enforceTypeRatings = data.enforceTypeRatings;
   }
   if (data.callsignMinRange !== undefined) {
     updateData.callsignMinRange = data.callsignMinRange;

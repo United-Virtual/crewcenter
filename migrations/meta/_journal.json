@@ -211,6 +211,13 @@
       "when": 1769208146618,
       "tag": "0029_regular_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1769352301662,
+      "tag": "0030_nosy_genesis",
+      "breakpoints": true
     }
   ]
 }
