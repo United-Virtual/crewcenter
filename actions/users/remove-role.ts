@@ -13,7 +13,7 @@ const removeRoleSchema = z.object({
   role: z.string().min(1, 'Role is required'),
 });
 
-export const removeRoleAction = createRoleActionClient(['users'])
+export const removeRoleAction = createRoleActionClient(['admin'])
   .inputSchema(removeRoleSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { userId, role } = parsedInput;

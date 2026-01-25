@@ -1,0 +1,1 @@
+ALTER TABLE `airline` ADD `enforce_type_ratings` integer NOT NULL DEFAULT 0;

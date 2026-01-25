@@ -462,15 +462,27 @@ export function PirepForm({ aircraft, multipliers }: PirepFormProps) {
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select an aircraft" />
+                      <SelectValue
+                        placeholder={
+                          aircraft.length === 0
+                            ? 'No aircrafts found.'
+                            : 'Select an aircraft'
+                        }
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {aircraft.map((ac) => (
-                      <SelectItem key={ac.id} value={ac.id}>
-                        {ac.name} ({ac.livery})
+                    {aircraft.length === 0 ? (
+                      <SelectItem value="no-aircraft" disabled>
+                        No aircrafts found.
                       </SelectItem>
-                    ))}
+                    ) : (
+                      aircraft.map((ac) => (
+                        <SelectItem key={ac.id} value={ac.id}>
+                          {ac.name} ({ac.livery})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />

@@ -3,25 +3,22 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-import { addRole } from '@/domains/users/add-role';
+import { removeTypeRating } from '@/domains/users/remove-typerating';
 import { handleDbError } from '@/lib/db-error';
-import { ASSIGNABLE_ROLES } from '@/lib/roles';
 import { createRoleActionClient } from '@/lib/safe-action';
 
-const addRoleSchema = z.object({
+const removeTypeRatingSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  role: z.enum(ASSIGNABLE_ROLES, {
-    message: 'Invalid role',
-  }),
+  typeRatingId: z.string().min(1, 'Type rating ID is required'),
 });
 
-export const addRoleAction = createRoleActionClient(['admin'])
-  .inputSchema(addRoleSchema)
+export const removeTypeRatingAction = createRoleActionClient(['users', 'admin'])
+  .inputSchema(removeTypeRatingSchema)
   .action(async ({ parsedInput }) => {
-    const { userId, role } = parsedInput;
+    const { userId, typeRatingId } = parsedInput;
 
     try {
-      const result = await addRole({ userId, role });
+      const result = await removeTypeRating({ userId, typeRatingId });
 
       revalidatePath('/admin/users');
       revalidatePath(`/admin/users/${userId}`);
@@ -29,11 +26,10 @@ export const addRoleAction = createRoleActionClient(['admin'])
       return {
         success: true,
         message: result.message,
-        roles: result.roles,
       };
     } catch (error) {
       handleDbError(error, {
-        fallback: 'Failed to add role',
+        fallback: 'Failed to remove type rating',
       });
     }
   });

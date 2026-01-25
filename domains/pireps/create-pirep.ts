@@ -2,7 +2,12 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { getAllowedAircraftForRank, getUserRank } from '@/db/queries';
+import {
+  getAirline,
+  getAllowedAircraftForRank,
+  getAllowedAircraftForUser,
+  getUserRank,
+} from '@/db/queries';
 import { getMultiplierValue } from '@/db/queries/multipliers';
 import { getFlightTimeForUser } from '@/db/queries/users';
 import { aircraft, airline, pireps, users } from '@/db/schema';
@@ -106,14 +111,24 @@ async function validateAircraftPermission(
   aircraftId: string
 ): Promise<void> {
   const currentFlightTime = await getFlightTimeForUser(userId);
-  const rank = await getUserRank(currentFlightTime);
+  const [airlineSettings, rank] = await Promise.all([
+    getAirline(),
+    getUserRank(currentFlightTime),
+  ]);
+  const enforceTypeRatings = airlineSettings?.enforceTypeRatings ?? false;
 
-  // If no rank exists, allow all aircraft
-  if (!rank) {
+  if (!enforceTypeRatings && !rank) {
     return;
   }
 
-  const allowedAircraft = await getAllowedAircraftForRank(rank.id);
+  const allowedAircraft = enforceTypeRatings
+    ? await getAllowedAircraftForUser(userId, currentFlightTime)
+    : await getAllowedAircraftForRank(rank!.id);
+
+  if (enforceTypeRatings && allowedAircraft.length === 0) {
+    throw new Error('No aircrafts found.');
+  }
+
   const isAircraftAllowed = allowedAircraft.some((ac) => ac.id === aircraftId);
 
   if (!isAircraftAllowed) {
@@ -126,9 +141,11 @@ async function validateAircraftPermission(
     const aircraftName = aircraftData
       ? `${aircraftData.name} (${aircraftData.livery})`
       : 'Unknown Aircraft';
-    throw new Error(
-      `You are not authorized to fly ${aircraftName} with your current rank (${rank.name}).`
-    );
+    const rankLabel = rank ? ` with your current rank (${rank.name})` : '';
+    const reason = enforceTypeRatings
+      ? `You are not authorized to fly ${aircraftName} with your current type ratings${rankLabel}.`
+      : `You are not authorized to fly ${aircraftName} with your current rank (${rank?.name ?? 'Unknown'}).`;
+    throw new Error(reason);
   }
 }
 

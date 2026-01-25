@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { updateAirlineAction } from '@/actions/airline/update-airline';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -56,6 +57,7 @@ const schema = z
       .number()
       .min(1, 'Inactivity period must be at least 1 day')
       .max(365, 'Inactivity period must be less than 365 days'),
+    enforceTypeRatings: z.boolean(),
     liveFilterSuffix: z.string().optional(),
     liveFilterVirtualOrg: z.string().optional(),
     liveFilterType: z.enum(['suffix', 'virtual_org']).optional(),
@@ -97,6 +99,7 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
       callsignMinRange: airline.callsignMinRange || 1,
       callsignMaxRange: airline.callsignMaxRange || 999,
       inactivityPeriod: airline.inactivityPeriod || 30,
+      enforceTypeRatings: airline.enforceTypeRatings ?? false,
       liveFilterSuffix: airline.liveFilterSuffix || '',
       liveFilterVirtualOrg: airline.liveFilterVirtualOrg || '',
       liveFilterType:
@@ -159,6 +162,7 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
       liveFilterSuffix: values.liveFilterSuffix || '',
       liveFilterVirtualOrg: values.liveFilterVirtualOrg || '',
       liveFilterType: values.liveFilterType || 'virtual_org',
+      enforceTypeRatings: values.enforceTypeRatings,
     });
   };
 
@@ -359,6 +363,37 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FormLabel className="text-base font-medium">
+              PIREP Settings
+            </FormLabel>
+            <p className="text-sm text-muted-foreground">
+              Configure how type ratings affect PIREP submissions.
+            </p>
+          </div>
+          <div className="flex items-start space-x-2">
+            <Checkbox
+              id="enforce-type-ratings"
+              checked={form.watch('enforceTypeRatings')}
+              onCheckedChange={(checked) =>
+                form.setValue('enforceTypeRatings', checked as boolean)
+              }
+              disabled={isExecuting}
+            />
+            <label
+              htmlFor="enforce-type-ratings"
+              className="text-sm leading-tight"
+            >
+              Enforce type ratings for PIREPs
+              <span className="mt-1 block text-xs text-muted-foreground">
+                When enabled, pilots must hold a type rating to file a PIREP for
+                that aircraft.
+              </span>
+            </label>
+          </div>
         </div>
 
         <div className="space-y-4">

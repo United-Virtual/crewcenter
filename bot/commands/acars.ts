@@ -16,9 +16,15 @@ import { and, eq } from 'drizzle-orm';
 
 import { findUserByDiscord } from '@/bot/utils/user-lookup';
 import { db } from '@/db';
+import {
+  getAllowedAircraftForRank,
+  getAllowedAircraftForUser,
+} from '@/db/queries/aircraft';
+import { getAirline } from '@/db/queries/airline';
 import { getMultipliers } from '@/db/queries/multipliers';
 import { getUserRank } from '@/db/queries/ranks';
-import { aircraft, airline, rankAircraft } from '@/db/schema';
+import { getFlightTimeForUser } from '@/db/queries/users';
+import { aircraft, airline } from '@/db/schema';
 import {
   createPirep,
   sendPirepWebhookNotification,
@@ -81,8 +87,7 @@ async function fetchAircraftLiveries() {
 async function validateAircraftAccess(
   userId: string,
   aircraftName: string,
-  liveryName: string,
-  flightTime: number
+  liveryName: string
 ): Promise<{ canFly: boolean; reason?: string }> {
   const existingAircraft = await db
     .select()
@@ -99,33 +104,41 @@ async function validateAircraftAccess(
     };
   }
 
-  const userRank = await getUserRank(flightTime);
-  if (!userRank) {
+  const [airlineSettings, currentFlightTime] = await Promise.all([
+    getAirline(),
+    getFlightTimeForUser(userId),
+  ]);
+  const enforceTypeRatings = airlineSettings?.enforceTypeRatings ?? false;
+
+  const rank = await getUserRank(currentFlightTime);
+  if (!enforceTypeRatings && !rank) {
     return {
       canFly: false,
       reason: 'Unable to determine your rank. Please contact an administrator.',
     };
   }
 
-  if (userRank.allowAllAircraft) {
-    return { canFly: true };
-  }
+  const allowedAircraft = enforceTypeRatings
+    ? await getAllowedAircraftForUser(userId, currentFlightTime)
+    : await getAllowedAircraftForRank(rank!.id);
 
-  const rankAircraftAccess = await db
-    .select()
-    .from(rankAircraft)
-    .where(
-      and(
-        eq(rankAircraft.rankId, userRank.id),
-        eq(rankAircraft.aircraftId, existingAircraft.id)
-      )
-    )
-    .get();
-
-  if (!rankAircraftAccess) {
+  if (enforceTypeRatings && allowedAircraft.length === 0) {
     return {
       canFly: false,
-      reason: `Your rank (${userRank.name}) does not have access to ${aircraftName} (${liveryName}).`,
+      reason: 'No aircrafts found.',
+    };
+  }
+
+  const isAircraftAllowed = allowedAircraft.some(
+    (ac) => ac.id === existingAircraft.id
+  );
+
+  if (!isAircraftAllowed) {
+    return {
+      canFly: false,
+      reason: enforceTypeRatings
+        ? `Your assigned type ratings do not allow ${aircraftName} (${liveryName}).`
+        : `Your rank (${rank?.name ?? 'Unknown'}) does not have access to ${aircraftName} (${liveryName}).`,
     };
   }
 
@@ -509,8 +522,7 @@ export async function handleButton(interaction: ButtonInteraction) {
       const aircraftAccess = await validateAircraftAccess(
         user.id,
         aircraftName,
-        liveryName,
-        selectedFlight.totalTime
+        liveryName
       );
       if (!aircraftAccess.canFly) {
         await interaction.editReply(`❌ ${aircraftAccess.reason}`);

@@ -15,13 +15,16 @@ import { UserFlights } from '@/components/users/user-flights';
 import { UserProfile } from '@/components/users/user-profile';
 import { UserRoles } from '@/components/users/user-roles';
 import { UserStats } from '@/components/users/user-stats';
+import { UserTypeRatings } from '@/components/users/user-type-ratings';
 import {
   getAirline,
   getFlightTimeForUser,
+  getTypeRatings,
   getUserById,
   getUserLastFlights,
   getUserPireps,
   getUserRank,
+  getUserTypeRatings,
 } from '@/db/queries';
 import { getCurrentUserRoles, requireRole } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
@@ -50,12 +53,19 @@ export default async function AdminUserDetailPage({
     redirect('/admin/users');
   }
 
-  const [pirepCountResult, calculatedFlightTime, userFlights] =
-    await Promise.all([
-      getUserPireps(user.id, 1, 1),
-      getFlightTimeForUser(user.id),
-      getUserLastFlights(user.id),
-    ]);
+  const [
+    pirepCountResult,
+    calculatedFlightTime,
+    userFlights,
+    typeRatings,
+    userTypeRatings,
+  ] = await Promise.all([
+    getUserPireps(user.id, 1, 1),
+    getFlightTimeForUser(user.id),
+    getUserLastFlights(user.id),
+    getTypeRatings(),
+    getUserTypeRatings(user.id),
+  ]);
 
   const { total: pirepCount } = pirepCountResult;
 
@@ -65,7 +75,6 @@ export default async function AdminUserDetailPage({
 
   const isCurrentUserAdmin = currentUserRoles.includes('admin');
   const isCurrentUserOwner = currentUserRoles.includes('owner');
-  const isCurrentUserUsersRole = currentUserRoles.includes('users');
   const isCurrentUserSuperuser = isCurrentUserAdmin || isCurrentUserOwner;
   const isTargetUserAdmin = roles.includes('admin');
   const isTargetUserUsersRole = roles.includes('users');
@@ -85,10 +94,7 @@ export default async function AdminUserDetailPage({
     // Admins cannot kick/ban other admins; only owner can
     (!isTargetUserAdmin || isCurrentUserOwner);
 
-  const canManageRoles =
-    isCurrentUserSuperuser ||
-    (isCurrentUserUsersRole &&
-      (isSameUser || (!isTargetUserAdmin && !isTargetUserUsersRole)));
+  const canManageRoles = isCurrentUserSuperuser;
 
   // Only the current owner can transfer ownership
   const canTransferOwnership = isCurrentUserOwner && !isSameUser;
@@ -135,6 +141,12 @@ export default async function AdminUserDetailPage({
             user={user}
             canManageRoles={canManageRoles}
             isCurrentUserOwner={isCurrentUserOwner}
+          />
+          <UserTypeRatings
+            user={user}
+            typeRatings={typeRatings}
+            userTypeRatings={userTypeRatings}
+            canManageTypeRatings={canManageRoles}
           />
         </div>
 
