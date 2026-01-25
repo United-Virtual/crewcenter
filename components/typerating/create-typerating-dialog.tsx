@@ -94,7 +94,7 @@ export function TypeRatingForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="A320"
-          maxLength={15}
+          maxLength={100}
           required
         />
       </div>

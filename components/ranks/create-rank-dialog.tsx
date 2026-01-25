@@ -141,7 +141,7 @@ export function RankForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="First Officer"
-            maxLength={15}
+            maxLength={100}
             required
           />
         </div>

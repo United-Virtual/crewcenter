@@ -11,7 +11,7 @@ const createTypeRatingSchema = z.object({
   name: z
     .string()
     .min(1, 'Type rating name is required')
-    .max(15, 'Type rating name must be 15 characters or less'),
+    .max(100, 'Type rating name must be 100 characters or less'),
   aircraftIds: z.array(z.string()).min(1, 'Select at least one aircraft'),
 });
 
