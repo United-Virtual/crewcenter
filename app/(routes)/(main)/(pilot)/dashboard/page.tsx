@@ -5,8 +5,9 @@ import { FlightsTable } from '@/components/dashboard/flights-table';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import {
   getActiveEvents,
+  getCareerMinutesForUser,
   getEventParticipants,
-  getFlightTimeForUser,
+  getFreeFlyMinutesForUser,
   getTotalFlightsNumber,
   getUserLastFlights,
   getUserRank,
@@ -24,12 +25,15 @@ export default async function DashboardPage() {
   const session = await authCheck();
 
   const userId = session.user.id;
-  const flightTime = await getFlightTimeForUser(userId);
+  const [careerMinutes, freeFlyMinutes] = await Promise.all([
+    getCareerMinutesForUser(userId),
+    getFreeFlyMinutesForUser(userId),
+  ]);
 
   const [totalFlights, lastFlights, rank] = await Promise.all([
     getTotalFlightsNumber(userId),
     getUserLastFlights(userId),
-    getUserRank(flightTime),
+    getUserRank(careerMinutes),
   ]);
 
   const activeEvents = await getActiveEvents();
@@ -91,10 +95,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
-          title="Hours Flown"
-          value={formatHoursMinutes(flightTime)}
+          title="Career Hours"
+          value={formatHoursMinutes(careerMinutes)}
+        />
+        <MetricCard
+          title="Free Fly Hours"
+          value={formatHoursMinutes(freeFlyMinutes)}
         />
         <MetricCard title="Total PIREPs" value={totalFlights.totalFlights} />
         <MetricCard title="Rank" value={rank?.name ?? 'N/A'} />

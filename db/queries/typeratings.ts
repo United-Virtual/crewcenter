@@ -1,13 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import type { TypeRating, UserTypeRating } from '@/db/schema';
-import {
-  aircraft,
-  typeRatingAircraft,
-  typeRatings,
-  userTypeRatings,
-} from '@/db/schema';
+import type { TypeRating } from '@/db/schema';
+import { aircraft, typeRatingAircraft, typeRatings, users } from '@/db/schema';
 
 async function getTypeRatingsPaginated(
   page: number,
@@ -50,52 +45,38 @@ async function getTypeRatingAircraft(typeRatingId: string): Promise<string[]> {
   return rows.map((row) => row.aircraftId);
 }
 
-async function getUserTypeRatings(userId: string): Promise<TypeRating[]> {
-  const rows = await db
-    .select({
-      id: typeRatings.id,
-      name: typeRatings.name,
-      createdAt: typeRatings.createdAt,
-      updatedAt: typeRatings.updatedAt,
-    })
-    .from(userTypeRatings)
-    .innerJoin(typeRatings, eq(userTypeRatings.typeRatingId, typeRatings.id))
-    .where(eq(userTypeRatings.userId, userId))
-    .orderBy(typeRatings.name);
+async function getUserTypeRating(userId: string): Promise<TypeRating | null> {
+  const row = await db
+    .select({ typeRating: typeRatings })
+    .from(users)
+    .leftJoin(typeRatings, eq(users.typeRatingId, typeRatings.id))
+    .where(eq(users.id, userId))
+    .get();
 
-  return rows as TypeRating[];
+  return row?.typeRating ?? null;
 }
 
-async function getUserTypeRatingsPaginated(
-  page: number,
-  limit: number,
-  search?: string
-): Promise<{ userTypeRatings: UserTypeRating[]; total: number }> {
-  const offset = (page - 1) * limit;
+async function getUserTypeRatingId(userId: string): Promise<string | null> {
+  const row = await db
+    .select({ typeRatingId: users.typeRatingId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
 
-  const whereCondition = search
-    ? sql<boolean>`${typeRatings.name} LIKE ${`%${search}%`} COLLATE NOCASE`
-    : sql<boolean>`1 = 1`;
-
-  const rows = await db
-    .select({
-      userTypeRating: userTypeRatings,
-      totalCount: sql<number>`COUNT(*) OVER()`.as('totalCount'),
-    })
-    .from(userTypeRatings)
-    .innerJoin(typeRatings, eq(userTypeRatings.typeRatingId, typeRatings.id))
-    .where(whereCondition)
-    .orderBy(typeRatings.name)
-    .limit(limit)
-    .offset(offset);
-
-  return {
-    userTypeRatings: rows.map((r) => r.userTypeRating),
-    total: rows[0]?.totalCount ?? 0,
-  };
+  return row?.typeRatingId ?? null;
 }
 
 async function getUserTypeRatingAircraft(userId: string): Promise<string[]> {
+  const user = await db
+    .select({ typeRatingId: users.typeRatingId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+
+  if (!user?.typeRatingId) {
+    return [];
+  }
+
   const rows = await db
     .select({ aircraftId: aircraft.id })
     .from(aircraft)
@@ -103,26 +84,17 @@ async function getUserTypeRatingAircraft(userId: string): Promise<string[]> {
       typeRatingAircraft,
       eq(aircraft.id, typeRatingAircraft.aircraftId)
     )
-    .innerJoin(
-      userTypeRatings,
-      eq(typeRatingAircraft.typeRatingId, userTypeRatings.typeRatingId)
-    )
-    .where(eq(userTypeRatings.userId, userId))
+    .where(eq(typeRatingAircraft.typeRatingId, user.typeRatingId))
     .orderBy(aircraft.name);
 
-  const unique = rows.filter(
-    (row, index, self) =>
-      index === self.findIndex((r) => r.aircraftId === row.aircraftId)
-  );
-
-  return unique.map((row) => row.aircraftId);
+  return rows.map((row) => row.aircraftId);
 }
 
 export {
   getTypeRatingAircraft,
   getTypeRatings,
   getTypeRatingsPaginated,
+  getUserTypeRating,
   getUserTypeRatingAircraft,
-  getUserTypeRatings,
-  getUserTypeRatingsPaginated,
+  getUserTypeRatingId,
 };

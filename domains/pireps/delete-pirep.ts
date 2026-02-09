@@ -1,7 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { pireps } from '@/db/schema';
+import { flightTimeLedger, pireps } from '@/db/schema';
+import { resolvePirepFlightTimeCategory } from '@/domains/pireps/flight-time-category';
+import { createFlightTimeLedgerEntry } from '@/lib/flight-time-ledger';
 import { hasRequiredRole, parseRolesField } from '@/lib/roles';
 
 export async function deletePirep(
@@ -14,6 +16,8 @@ export async function deletePirep(
       id: pireps.id,
       status: pireps.status,
       userId: pireps.userId,
+      flightTime: pireps.flightTime,
+      aircraftId: pireps.aircraftId,
     })
     .from(pireps)
     .where(eq(pireps.id, id))
@@ -39,6 +43,29 @@ export async function deletePirep(
         'Access denied. Only users with the pireps role can delete non-pending PIREPs'
       );
     }
+  }
+
+  if (pirep.status === 'approved') {
+    const lastCategory =
+      (
+        await db
+          .select({ category: flightTimeLedger.category })
+          .from(flightTimeLedger)
+          .where(eq(flightTimeLedger.pirepId, id))
+          .orderBy(desc(flightTimeLedger.createdAt))
+          .get()
+      )?.category ?? null;
+    const category =
+      lastCategory ??
+      (await resolvePirepFlightTimeCategory(pirep.userId, pirep.aircraftId));
+    await createFlightTimeLedgerEntry({
+      userId: pirep.userId,
+      minutes: -pirep.flightTime,
+      category,
+      sourceType: 'pirep_adjustment',
+      pirepId: id,
+      note: 'PIREP deleted',
+    });
   }
 
   const result = await db.delete(pireps).where(eq(pireps.id, id));

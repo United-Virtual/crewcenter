@@ -18,13 +18,14 @@ import { UserStats } from '@/components/users/user-stats';
 import { UserTypeRatings } from '@/components/users/user-type-ratings';
 import {
   getAirline,
-  getFlightTimeForUser,
+  getCareerMinutesForUser,
+  getTotalMinutesForUser,
   getTypeRatings,
   getUserById,
   getUserLastFlights,
   getUserPireps,
   getUserRank,
-  getUserTypeRatings,
+  getUserTypeRating,
 } from '@/db/queries';
 import { getCurrentUserRoles, requireRole } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
@@ -56,15 +57,17 @@ export default async function AdminUserDetailPage({
   const [
     pirepCountResult,
     calculatedFlightTime,
+    careerMinutes,
     userFlights,
     typeRatings,
-    userTypeRatings,
+    userTypeRating,
   ] = await Promise.all([
     getUserPireps(user.id, 1, 1),
-    getFlightTimeForUser(user.id),
+    getTotalMinutesForUser(user.id),
+    getCareerMinutesForUser(user.id),
     getUserLastFlights(user.id),
     getTypeRatings(),
-    getUserTypeRatings(user.id),
+    getUserTypeRating(user.id),
   ]);
 
   const { total: pirepCount } = pirepCountResult;
@@ -75,6 +78,7 @@ export default async function AdminUserDetailPage({
 
   const isCurrentUserAdmin = currentUserRoles.includes('admin');
   const isCurrentUserOwner = currentUserRoles.includes('owner');
+  const isCurrentUserUsersRole = currentUserRoles.includes('users');
   const isCurrentUserSuperuser = isCurrentUserAdmin || isCurrentUserOwner;
   const isTargetUserAdmin = roles.includes('admin');
   const isTargetUserUsersRole = roles.includes('users');
@@ -102,7 +106,7 @@ export default async function AdminUserDetailPage({
   // No one can reset the owner's password
   const canResetPassword = canPerformActions && !isTargetUserOwner;
 
-  const userRank = await getUserRank(calculatedFlightTime);
+  const userRank = await getUserRank(careerMinutes);
 
   return (
     <PageLayout className="space-y-6">
@@ -145,8 +149,9 @@ export default async function AdminUserDetailPage({
           <UserTypeRatings
             user={user}
             typeRatings={typeRatings}
-            userTypeRatings={userTypeRatings}
+            userTypeRating={userTypeRating}
             canManageTypeRatings={canManageRoles}
+            typeRatingChangeDivisor={airline?.typeRatingChangeDivisor ?? 1}
           />
         </div>
 

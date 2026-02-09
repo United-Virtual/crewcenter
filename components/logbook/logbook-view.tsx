@@ -119,7 +119,7 @@ export function LogbookView({
             View and filter your complete flight history and PIREPs
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <PirepFiltersBar
             aircraft={aircraft}
             currentFilters={filtersFromParams}

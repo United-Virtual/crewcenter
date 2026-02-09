@@ -1,9 +1,11 @@
-import { eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { logPirepEvent } from '@/db/queries/pireps';
-import { getFlightTimeForUser } from '@/db/queries/users';
-import { pireps } from '@/db/schema';
+import { getCareerMinutesForUser } from '@/db/queries/users';
+import { flightTimeLedger, pireps } from '@/db/schema';
+import { resolvePirepFlightTimeCategory } from '@/domains/pireps/flight-time-category';
+import { createFlightTimeLedgerEntry } from '@/lib/flight-time-ledger';
 import { maybeScheduleRankup } from '@/lib/rankup-trigger';
 
 type PirepStatus = 'pending' | 'approved' | 'denied';
@@ -57,6 +59,7 @@ export async function updatePirepStatus(
       flightTime: pireps.flightTime,
       status: pireps.status,
       deniedReason: pireps.deniedReason,
+      aircraftId: pireps.aircraftId,
     })
     .from(pireps)
     .where(eq(pireps.id, pirepId))
@@ -88,7 +91,47 @@ export async function updatePirepStatus(
   );
 
   if (newStatus === 'approved' && pirepData.status !== 'approved') {
-    const totalFlightTime = await getFlightTimeForUser(pirepData.userId);
+    const category = await resolvePirepFlightTimeCategory(
+      pirepData.userId,
+      pirepData.aircraftId
+    );
+    await createFlightTimeLedgerEntry({
+      userId: pirepData.userId,
+      minutes: pirepData.flightTime,
+      category,
+      sourceType: 'pirep',
+      pirepId,
+    });
+  }
+
+  if (pirepData.status === 'approved' && newStatus !== 'approved') {
+    const lastCategory =
+      (
+        await db
+          .select({ category: flightTimeLedger.category })
+          .from(flightTimeLedger)
+          .where(eq(flightTimeLedger.pirepId, pirepId))
+          .orderBy(desc(flightTimeLedger.createdAt))
+          .get()
+      )?.category ?? null;
+    const category =
+      lastCategory ??
+      (await resolvePirepFlightTimeCategory(
+        pirepData.userId,
+        pirepData.aircraftId
+      ));
+    await createFlightTimeLedgerEntry({
+      userId: pirepData.userId,
+      minutes: -pirepData.flightTime,
+      category,
+      sourceType: 'pirep_adjustment',
+      pirepId,
+      note: 'PIREP unapproved',
+    });
+  }
+
+  if (newStatus === 'approved' && pirepData.status !== 'approved') {
+    const totalFlightTime = await getCareerMinutesForUser(pirepData.userId);
     maybeScheduleRankup(
       pirepData.userId,
       totalFlightTime - pirepData.flightTime,
@@ -114,6 +157,7 @@ export async function updateBulkPirepStatus(
       flightTime: pireps.flightTime,
       status: pireps.status,
       deniedReason: pireps.deniedReason,
+      aircraftId: pireps.aircraftId,
     })
     .from(pireps)
     .where(inArray(pireps.id, pirepIds));
@@ -150,7 +194,19 @@ export async function updateBulkPirepStatus(
 
     // Schedule rankup for approved PIREPs that weren't already approved
     if (pirepData.status !== 'approved') {
-      const totalFlightTime = await getFlightTimeForUser(pirepData.userId);
+      const category = await resolvePirepFlightTimeCategory(
+        pirepData.userId,
+        pirepData.aircraftId
+      );
+      await createFlightTimeLedgerEntry({
+        userId: pirepData.userId,
+        minutes: pirepData.flightTime,
+        category,
+        sourceType: 'pirep',
+        pirepId: pirepData.id,
+      });
+
+      const totalFlightTime = await getCareerMinutesForUser(pirepData.userId);
       maybeScheduleRankup(
         pirepData.userId,
         totalFlightTime - pirepData.flightTime,

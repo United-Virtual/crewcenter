@@ -5,12 +5,11 @@ import { getAirportInfoByIcao, getPirepById } from '@/db/queries';
 import {
   getAircraft,
   getAirline,
-  getAllowedAircraftForRank,
-  getAllowedAircraftForUser,
   getMultipliers,
   getUserRank,
 } from '@/db/queries';
-import { getFlightTimeForUser } from '@/db/queries/users';
+import { getCareerMinutesForUser } from '@/db/queries/users';
+import { resolvePirepFlightTimeCategory } from '@/domains/pireps/flight-time-category';
 import { authCheck } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
 
@@ -36,24 +35,29 @@ export default async function PirepDetailPage({
   const { pirep, aircraft, multiplier } = pirepData;
 
   // Get user's flight time to determine allowed aircraft
-  const userFlightTime = await getFlightTimeForUser(session.user.id);
+  const userFlightTime = await getCareerMinutesForUser(session.user.id);
 
   // Get additional data for editing functionality
-  const [departureInfo, arrivalInfo, multipliersList, airline, userRank] =
-    await Promise.all([
-      getAirportInfoByIcao(pirep.departureIcao),
-      getAirportInfoByIcao(pirep.arrivalIcao),
-      getMultipliers(),
-      getAirline(),
-      getUserRank(userFlightTime),
-    ]);
+  const [
+    departureInfo,
+    arrivalInfo,
+    multipliersList,
+    airline,
+    userRank,
+    aircraftList,
+  ] = await Promise.all([
+    getAirportInfoByIcao(pirep.departureIcao),
+    getAirportInfoByIcao(pirep.arrivalIcao),
+    getMultipliers(),
+    getAirline(),
+    getUserRank(userFlightTime),
+    getAircraft(),
+  ]);
 
-  const enforceTypeRatings = airline?.enforceTypeRatings ?? false;
-  const aircraftList = enforceTypeRatings
-    ? await getAllowedAircraftForUser(session.user.id, userFlightTime)
-    : userRank
-      ? await getAllowedAircraftForRank(userRank.id)
-      : await getAircraft();
+  const flightTimeCategory =
+    pirep.flightTimeCategory ??
+    (await resolvePirepFlightTimeCategory(pirep.userId, pirep.aircraftId));
+  const pirepWithCategory = { ...pirep, flightTimeCategory };
 
   // User can only edit their own PIREPs when they are in pending status
   const isEditable = pirep.status === 'pending';
@@ -63,7 +67,7 @@ export default async function PirepDetailPage({
 
   return (
     <PirepDetails
-      pirep={pirep}
+      pirep={pirepWithCategory}
       aircraft={aircraft}
       multiplier={multiplier}
       isEditable={isEditable}

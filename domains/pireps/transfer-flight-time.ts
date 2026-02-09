@@ -2,8 +2,9 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { getFlightTimeForUser } from '@/db/queries/users';
+import { getCareerMinutesForUser } from '@/db/queries/users';
 import { pireps, users } from '@/db/schema';
+import { createFlightTimeLedgerEntry } from '@/lib/flight-time-ledger';
 import { maybeScheduleRankup } from '@/lib/rankup-trigger';
 
 const _transferFlightTimeSchema = z.object({
@@ -75,7 +76,16 @@ export async function transferFlightTime(data: TransferFlightTimeData) {
     })
     .returning();
 
-  const totalFlightTime = await getFlightTimeForUser(targetUserId);
+  await createFlightTimeLedgerEntry({
+    userId: targetUserId,
+    minutes: totalMinutes,
+    category: 'career',
+    sourceType: 'manual',
+    pirepId: newPirep.id,
+    note: `Transfer done by ${performingUser.name}`,
+  });
+
+  const totalFlightTime = await getCareerMinutesForUser(targetUserId);
   maybeScheduleRankup(
     targetUserId,
     totalFlightTime - totalMinutes,

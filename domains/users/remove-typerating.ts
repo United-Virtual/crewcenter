@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { userTypeRatings } from '@/db/schema';
+import { users } from '@/db/schema';
 
 interface RemoveTypeRatingData {
   userId: string;
@@ -13,28 +13,23 @@ export async function removeTypeRating({
   typeRatingId,
 }: RemoveTypeRatingData) {
   const existing = await db
-    .select()
-    .from(userTypeRatings)
-    .where(
-      and(
-        eq(userTypeRatings.userId, userId),
-        eq(userTypeRatings.typeRatingId, typeRatingId)
-      )
-    )
+    .select({ typeRatingId: users.typeRatingId })
+    .from(users)
+    .where(eq(users.id, userId))
     .get();
 
   if (!existing) {
+    throw new Error('User not found');
+  }
+
+  if (!existing.typeRatingId || existing.typeRatingId !== typeRatingId) {
     return { message: 'Type rating already removed' };
   }
 
   await db
-    .delete(userTypeRatings)
-    .where(
-      and(
-        eq(userTypeRatings.userId, userId),
-        eq(userTypeRatings.typeRatingId, typeRatingId)
-      )
-    );
+    .update(users)
+    .set({ typeRatingId: null, updatedAt: new Date() })
+    .where(eq(users.id, userId));
 
   return { message: 'Type rating removed successfully' };
 }

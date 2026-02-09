@@ -1,10 +1,12 @@
-import { eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
 import { logPirepEvent } from '@/db/queries/pireps';
-import { getFlightTimeForUser } from '@/db/queries/users';
-import { multipliers, pireps } from '@/db/schema';
+import { getCareerMinutesForUser } from '@/db/queries/users';
+import { flightTimeLedger, multipliers, pireps } from '@/db/schema';
+import { resolvePirepFlightTimeCategory } from '@/domains/pireps/flight-time-category';
+import { createFlightTimeLedgerEntry } from '@/lib/flight-time-ledger';
 import { maybeScheduleRankup } from '@/lib/rankup-trigger';
 import { hasRequiredRole, parseRolesField } from '@/lib/roles';
 
@@ -198,10 +200,37 @@ export async function editPirep(
 
   const newFlightTime = updates.flightTime ?? current.flightTime;
   if (newFlightTime !== current.flightTime) {
-    const totalFlightTime = await getFlightTimeForUser(current.userId);
+    const delta = newFlightTime - current.flightTime;
+    if (current.status === 'approved') {
+      const lastCategory =
+        (
+          await db
+            .select({ category: flightTimeLedger.category })
+            .from(flightTimeLedger)
+            .where(eq(flightTimeLedger.pirepId, id))
+            .orderBy(desc(flightTimeLedger.createdAt))
+            .get()
+        )?.category ?? null;
+      const category =
+        lastCategory ??
+        (await resolvePirepFlightTimeCategory(
+          current.userId,
+          current.aircraftId ?? null
+        ));
+      await createFlightTimeLedgerEntry({
+        userId: current.userId,
+        minutes: delta,
+        category,
+        sourceType: 'pirep_adjustment',
+        pirepId: id,
+        note: 'PIREP edited',
+      });
+    }
+
+    const totalFlightTime = await getCareerMinutesForUser(current.userId);
     maybeScheduleRankup(
       current.userId,
-      totalFlightTime - (newFlightTime - current.flightTime),
+      totalFlightTime - delta,
       totalFlightTime
     );
   }

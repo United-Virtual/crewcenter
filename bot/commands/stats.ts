@@ -12,7 +12,8 @@ import {
 
 import { findUserByDiscord } from '@/bot/utils/user-lookup';
 import {
-  getFlightTimeForUser,
+  getCareerMinutesForUser,
+  getFreeFlyMinutesForUser,
   getRankProgression,
   getTotalFlightsNumber,
   getUserLastFlights,
@@ -79,16 +80,20 @@ export async function handleButton(interaction: ButtonInteraction) {
     const airlineName = airlineData?.name;
 
     if (buttonType === 'general') {
-      const flightTime = await getFlightTimeForUser(user.id);
+      const [careerMinutes, freeFlyMinutes] = await Promise.all([
+        getCareerMinutesForUser(user.id),
+        getFreeFlyMinutesForUser(user.id),
+      ]);
       const totalFlightsData = await getTotalFlightsNumber(user.id);
       const totalFlights = totalFlightsData.totalFlights;
-      const rankProgression = await getRankProgression(flightTime);
+      const rankProgression = await getRankProgression(careerMinutes);
       const airlineCallsign = airlineData?.callsign;
       const fullCallsign = formatFullCallsign(airlineCallsign!, user.callsign!);
 
       const lines = [
         `👨‍✈️ **Pilot:** ${user.name} (\`${fullCallsign}\`)`,
-        `⏱️ **Flight Time:** ${formatHoursMinutes(flightTime)}`,
+        `⏱️ **Career Time:** ${formatHoursMinutes(careerMinutes)}`,
+        `🛫 **Free Fly Time:** ${formatHoursMinutes(freeFlyMinutes)}`,
         `📋 **Total PIREPs:** ${totalFlights}`,
         `🎖️ **Current Rank:** ${rankProgression.currentRank?.name ?? 'N/A'}`,
       ];
@@ -98,7 +103,7 @@ export async function handleButton(interaction: ButtonInteraction) {
         const hoursToNextFormatted = formatHoursMinutes(
           Math.round(hoursToNext * 60)
         );
-        const currentHours = flightTime / 60;
+        const currentHours = careerMinutes / 60;
         const targetHours = rankProgression.nextRank.minimumFlightTime;
         const progressBar = createProgressBar(currentHours, targetHours);
 
@@ -252,15 +257,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const airlineCallsign = airlineData?.callsign;
     const airlineName = airlineData?.name;
 
-    const flightTime = await getFlightTimeForUser(user.id);
+    const [careerMinutes, freeFlyMinutes] = await Promise.all([
+      getCareerMinutesForUser(user.id),
+      getFreeFlyMinutesForUser(user.id),
+    ]);
     const totalFlightsData = await getTotalFlightsNumber(user.id);
     const totalFlights = totalFlightsData.totalFlights;
-    const rankProgression = await getRankProgression(flightTime);
+    const rankProgression = await getRankProgression(careerMinutes);
     const fullCallsign = formatFullCallsign(airlineCallsign!, user.callsign!);
 
     const lines = [
       `👨‍✈️ **Pilot:** ${user.name} (\`${fullCallsign}\`)`,
-      `⏱️ **Flight Time:** ${formatHoursMinutes(flightTime)}`,
+      `⏱️ **Career Time:** ${formatHoursMinutes(careerMinutes)}`,
+      `🛫 **Free Fly Time:** ${formatHoursMinutes(freeFlyMinutes)}`,
       `📋 **Total PIREPs:** ${totalFlights}`,
       `🎖️ **Current Rank:** ${rankProgression.currentRank?.name ?? 'N/A'}`,
     ];
@@ -270,7 +279,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       const hoursToNextFormatted = formatHoursMinutes(
         Math.round(hoursToNext * 60)
       );
-      const currentHours = flightTime / 60;
+      const currentHours = careerMinutes / 60;
       const targetHours = rankProgression.nextRank.minimumFlightTime;
       const progressBar = createProgressBar(currentHours, targetHours);
 

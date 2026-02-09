@@ -16,14 +16,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { findUserByDiscord } from '@/bot/utils/user-lookup';
 import { db } from '@/db';
-import {
-  getAllowedAircraftForRank,
-  getAllowedAircraftForUser,
-} from '@/db/queries/aircraft';
-import { getAirline } from '@/db/queries/airline';
 import { getMultipliers } from '@/db/queries/multipliers';
-import { getUserRank } from '@/db/queries/ranks';
-import { getFlightTimeForUser } from '@/db/queries/users';
 import { aircraft, airline } from '@/db/schema';
 import {
   createPirep,
@@ -89,6 +82,7 @@ async function validateAircraftAccess(
   aircraftName: string,
   liveryName: string
 ): Promise<{ canFly: boolean; reason?: string }> {
+  void userId;
   const existingAircraft = await db
     .select()
     .from(aircraft)
@@ -101,44 +95,6 @@ async function validateAircraftAccess(
     return {
       canFly: false,
       reason: `Aircraft ${aircraftName} (${liveryName}) is not available in our fleet.`,
-    };
-  }
-
-  const [airlineSettings, currentFlightTime] = await Promise.all([
-    getAirline(),
-    getFlightTimeForUser(userId),
-  ]);
-  const enforceTypeRatings = airlineSettings?.enforceTypeRatings ?? false;
-
-  const rank = await getUserRank(currentFlightTime);
-  if (!enforceTypeRatings && !rank) {
-    return {
-      canFly: false,
-      reason: 'Unable to determine your rank. Please contact an administrator.',
-    };
-  }
-
-  const allowedAircraft = enforceTypeRatings
-    ? await getAllowedAircraftForUser(userId, currentFlightTime)
-    : await getAllowedAircraftForRank(rank!.id);
-
-  if (enforceTypeRatings && allowedAircraft.length === 0) {
-    return {
-      canFly: false,
-      reason: 'No aircrafts found.',
-    };
-  }
-
-  const isAircraftAllowed = allowedAircraft.some(
-    (ac) => ac.id === existingAircraft.id
-  );
-
-  if (!isAircraftAllowed) {
-    return {
-      canFly: false,
-      reason: enforceTypeRatings
-        ? `Your assigned type ratings do not allow ${aircraftName} (${liveryName}).`
-        : `Your rank (${rank?.name ?? 'Unknown'}) does not have access to ${aircraftName} (${liveryName}).`,
     };
   }
 

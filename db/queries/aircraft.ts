@@ -9,7 +9,6 @@ import {
   ranks,
   typeRatingAircraft,
   users,
-  userTypeRatings,
 } from '@/db/schema';
 import { ADMIN_ROLE, OWNER_ROLE, parseRolesField } from '@/lib/roles';
 
@@ -116,7 +115,7 @@ async function getAllowedAircraftForUser(
   flightTimeMinutes: number
 ): Promise<Aircraft[]> {
   const user = await db
-    .select({ role: users.role })
+    .select({ role: users.role, typeRatingId: users.typeRatingId })
     .from(users)
     .where(eq(users.id, userId))
     .get();
@@ -130,18 +129,14 @@ async function getAllowedAircraftForUser(
     return getAircraft();
   }
 
+  if (!user.typeRatingId) {
+    return [];
+  }
+
   const assignedRows = await db
     .select({ aircraftId: typeRatingAircraft.aircraftId })
     .from(typeRatingAircraft)
-    .innerJoin(
-      userTypeRatings,
-      eq(userTypeRatings.typeRatingId, typeRatingAircraft.typeRatingId)
-    )
-    .where(eq(userTypeRatings.userId, userId));
-
-  if (assignedRows.length === 0) {
-    return [];
-  }
+    .where(eq(typeRatingAircraft.typeRatingId, user.typeRatingId));
 
   const assignedIds = new Set(assignedRows.map((row) => row.aircraftId));
 

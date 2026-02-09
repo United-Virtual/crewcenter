@@ -4,6 +4,7 @@ import { db } from '@/db';
 import {
   type Aircraft,
   aircraft,
+  flightTimeLedger,
   type Multiplier,
   multipliers,
   type Pirep,
@@ -83,8 +84,18 @@ async function getUserPireps(
   };
 }
 
+const flightTimeCategorySelect = sql<string | null>`
+  (
+    SELECT ${flightTimeLedger.category}
+    FROM ${flightTimeLedger}
+    WHERE ${flightTimeLedger.pirepId} = ${pireps.id}
+    ORDER BY ${flightTimeLedger.createdAt} DESC
+    LIMIT 1
+  )
+`.as('flightTimeCategory');
+
 async function getPirepById(pirepId: string): Promise<{
-  pirep: Pirep;
+  pirep: Pirep & { flightTimeCategory: string | null };
   aircraft: Aircraft | null;
   multiplier: Multiplier | null;
   user: User;
@@ -92,6 +103,7 @@ async function getPirepById(pirepId: string): Promise<{
   const row = await db
     .select({
       pirep: pireps,
+      flightTimeCategory: flightTimeCategorySelect,
       aircraft: aircraft,
       multiplier: multipliers,
       user: users,
@@ -108,7 +120,10 @@ async function getPirepById(pirepId: string): Promise<{
   }
 
   return {
-    pirep: row.pirep,
+    pirep: {
+      ...row.pirep,
+      flightTimeCategory: row.flightTimeCategory,
+    },
     aircraft: row.aircraft,
     multiplier: row.multiplier,
     user: row.user,
