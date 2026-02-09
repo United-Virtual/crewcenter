@@ -17,8 +17,7 @@ import { and, eq } from 'drizzle-orm';
 import { findUserByDiscord } from '@/bot/utils/user-lookup';
 import { db } from '@/db';
 import { getMultipliers } from '@/db/queries/multipliers';
-import { getUserRank } from '@/db/queries/ranks';
-import { aircraft, airline, rankAircraft } from '@/db/schema';
+import { aircraft, airline } from '@/db/schema';
 import {
   createPirep,
   sendPirepWebhookNotification,
@@ -81,9 +80,9 @@ async function fetchAircraftLiveries() {
 async function validateAircraftAccess(
   userId: string,
   aircraftName: string,
-  liveryName: string,
-  flightTime: number
+  liveryName: string
 ): Promise<{ canFly: boolean; reason?: string }> {
+  void userId;
   const existingAircraft = await db
     .select()
     .from(aircraft)
@@ -96,36 +95,6 @@ async function validateAircraftAccess(
     return {
       canFly: false,
       reason: `Aircraft ${aircraftName} (${liveryName}) is not available in our fleet.`,
-    };
-  }
-
-  const userRank = await getUserRank(flightTime);
-  if (!userRank) {
-    return {
-      canFly: false,
-      reason: 'Unable to determine your rank. Please contact an administrator.',
-    };
-  }
-
-  if (userRank.allowAllAircraft) {
-    return { canFly: true };
-  }
-
-  const rankAircraftAccess = await db
-    .select()
-    .from(rankAircraft)
-    .where(
-      and(
-        eq(rankAircraft.rankId, userRank.id),
-        eq(rankAircraft.aircraftId, existingAircraft.id)
-      )
-    )
-    .get();
-
-  if (!rankAircraftAccess) {
-    return {
-      canFly: false,
-      reason: `Your rank (${userRank.name}) does not have access to ${aircraftName} (${liveryName}).`,
     };
   }
 
@@ -509,8 +478,7 @@ export async function handleButton(interaction: ButtonInteraction) {
       const aircraftAccess = await validateAircraftAccess(
         user.id,
         aircraftName,
-        liveryName,
-        selectedFlight.totalTime
+        liveryName
       );
       if (!aircraftAccess.canFly) {
         await interaction.editReply(`❌ ${aircraftAccess.reason}`);

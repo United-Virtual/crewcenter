@@ -41,8 +41,8 @@ export default function EditRankDialog({
   rank,
 }: EditRankDialogProps) {
   const [aircraft, setAircraft] = useState<
-    { id: string; name: string; livery: string }[]
-  >([]);
+    { id: string; name: string; livery: string }[] | null
+  >(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[500px]',
@@ -66,12 +66,14 @@ export default function EditRankDialog({
   });
 
   useEffect(() => {
-    if (open && aircraft.length === 0 && !isLoadingData) {
+    if (open && aircraft === null && !isLoadingData) {
       setIsLoadingData(true);
       getRankFormDataAction()
         .then((result) => {
           if (result?.data) {
             setAircraft(result.data.aircraft);
+          } else {
+            setAircraft([]);
           }
         })
         .catch((error) => {
@@ -85,7 +87,7 @@ export default function EditRankDialog({
           setIsLoadingData(false);
         });
     }
-  }, [open, aircraft.length, isLoadingData]);
+  }, [open, aircraft, isLoadingData]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,7 +102,7 @@ export default function EditRankDialog({
             Update rank details and aircraft permissions.
           </DialogDescription>
         </DialogHeader>
-        {isLoadingData || aircraft.length === 0 ? (
+        {isLoadingData || aircraft === null ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">

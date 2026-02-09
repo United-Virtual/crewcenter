@@ -2,9 +2,9 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '@/db';
-import { getAllowedAircraftForRank, getUserRank } from '@/db/queries';
+import { getUserRank } from '@/db/queries';
 import { getMultiplierValue } from '@/db/queries/multipliers';
-import { getFlightTimeForUser } from '@/db/queries/users';
+import { getCareerMinutesForUser } from '@/db/queries/users';
 import { aircraft, airline, pireps, users } from '@/db/schema';
 import { MAX_CARGO_KG, MAX_FUEL_KG, MAX_PASSENGERS } from '@/lib/constants';
 import { formatHoursMinutes } from '@/lib/utils';
@@ -84,7 +84,7 @@ async function validateFlightTimeLimit(
   userId: string,
   flightTime: number
 ): Promise<void> {
-  const currentFlightTime = await getFlightTimeForUser(userId);
+  const currentFlightTime = await getCareerMinutesForUser(userId);
   const rank = await getUserRank(currentFlightTime);
 
   // If no rank exists, no flight time restrictions apply
@@ -97,37 +97,6 @@ async function validateFlightTimeLimit(
     const limit = formatHoursMinutes(rank.maximumFlightTime * 60);
     throw new Error(
       `The flight time you entered (${entered}) exceeds the maximum allowed for your rank (${rank.name}): ${limit}.`
-    );
-  }
-}
-
-async function validateAircraftPermission(
-  userId: string,
-  aircraftId: string
-): Promise<void> {
-  const currentFlightTime = await getFlightTimeForUser(userId);
-  const rank = await getUserRank(currentFlightTime);
-
-  // If no rank exists, allow all aircraft
-  if (!rank) {
-    return;
-  }
-
-  const allowedAircraft = await getAllowedAircraftForRank(rank.id);
-  const isAircraftAllowed = allowedAircraft.some((ac) => ac.id === aircraftId);
-
-  if (!isAircraftAllowed) {
-    const aircraftData = await db
-      .select({ name: aircraft.name, livery: aircraft.livery })
-      .from(aircraft)
-      .where(eq(aircraft.id, aircraftId))
-      .get();
-
-    const aircraftName = aircraftData
-      ? `${aircraftData.name} (${aircraftData.livery})`
-      : 'Unknown Aircraft';
-    throw new Error(
-      `You are not authorized to fly ${aircraftName} with your current rank (${rank.name}).`
     );
   }
 }
@@ -236,8 +205,6 @@ export async function createPirep(data: CreatePirepData, userId: string) {
   );
 
   await validateFlightTimeLimit(userId, data.flightTime);
-
-  await validateAircraftPermission(userId, data.aircraftId);
 
   const newPirep = await createPirepRecord(data, adjustedFlightTime, userId);
 

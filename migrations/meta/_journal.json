@@ -204,6 +204,27 @@
       "when": 1761668953670,
       "tag": "0028_tidy_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1769208146618,
+      "tag": "0029_regular_blackheart",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1769352301662,
+      "tag": "0030_nosy_genesis",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1770592003612,
+      "tag": "0031_friendly_white_tiger",
+      "breakpoints": true
     }
   ]
 }

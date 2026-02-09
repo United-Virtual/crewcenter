@@ -15,7 +15,7 @@ const addRoleSchema = z.object({
   }),
 });
 
-export const addRoleAction = createRoleActionClient(['users'])
+export const addRoleAction = createRoleActionClient(['admin'])
   .inputSchema(addRoleSchema)
   .action(async ({ parsedInput }) => {
     const { userId, role } = parsedInput;

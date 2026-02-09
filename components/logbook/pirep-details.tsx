@@ -40,7 +40,7 @@ import { extractErrorMessage } from '@/lib/error-handler';
 import { formatFullCallsign } from '@/lib/utils';
 
 interface PirepDetailSharedProps {
-  pirep: Pirep;
+  pirep: Pirep & { flightTimeCategory?: string | null };
   aircraft: Aircraft | null;
   multiplier: Multiplier | null;
   user?: User;
@@ -82,6 +82,8 @@ export function PirepDetails({
   currentUserId,
   userRoles = [],
 }: PirepDetailSharedProps) {
+  const hoursLabel =
+    pirep.flightTimeCategory === 'career' ? 'Career' : 'Free Fly';
   const router = useRouter();
   const { dialogStyles } = useResponsiveDialog();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -203,7 +205,7 @@ export function PirepDetails({
             <StatusBadge status={pirep.status} className="text-sm px-3 py-1" />
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {showDeleteButton && (
             <Button
               variant="destructive"
@@ -305,6 +307,12 @@ export function PirepDetails({
           isEditable={isEditable}
           field="flightTime"
           currentMultiplierValue={multiplier?.value || 1}
+          className="h-full"
+          icon={<Clock className="h-4 w-4" />}
+        />
+        <DetailsCard
+          title="Hours Type"
+          value={hoursLabel}
           className="h-full"
           icon={<Clock className="h-4 w-4" />}
         />

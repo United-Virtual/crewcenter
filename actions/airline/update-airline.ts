@@ -57,6 +57,12 @@ const updateAirlineSchema = z
       .min(1, 'Inactivity period must be at least 1 day')
       .max(365, 'Inactivity period must be less than 365 days')
       .optional(),
+    enforceTypeRatings: z.boolean().optional(),
+    typeRatingChangeDivisor: z
+      .number()
+      .min(1, 'Divisor must be at least 1')
+      .max(1000, 'Divisor must be less than or equal to 1000')
+      .optional(),
     callsignMinRange: z
       .number()
       .int('Minimum range must be an integer')
@@ -100,6 +106,8 @@ export const updateAirlineAction = createRoleActionClient(['admin'])
       leaveRequestWebhookUrl,
       inactivityWebhookUrl,
       inactivityPeriod,
+      enforceTypeRatings,
+      typeRatingChangeDivisor,
       callsignMinRange,
       callsignMaxRange,
       liveFilterSuffix,
@@ -119,6 +127,8 @@ export const updateAirlineAction = createRoleActionClient(['admin'])
         leaveRequestWebhookUrl,
         inactivityWebhookUrl,
         inactivityPeriod,
+        enforceTypeRatings,
+        typeRatingChangeDivisor,
         callsignMinRange,
         callsignMaxRange,
         liveFilterSuffix,

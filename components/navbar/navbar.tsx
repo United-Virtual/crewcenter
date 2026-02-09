@@ -33,7 +33,7 @@ export default function Navbar({ basePath = '' }: NavbarProps) {
   const activeIndex = useActiveIndex(navItems, pathname, basePath);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/75 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/75 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild>
@@ -63,21 +63,21 @@ export default function Navbar({ basePath = '' }: NavbarProps) {
         <Link
           href="/"
           aria-label="Home"
-          className="flex items-center gap-2 rounded-md pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex items-center gap-3 rounded-md pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <img
             src={useAirlineLogo('light')}
             alt="Airline Logo (light)"
-            width={20}
-            height={20}
-            className="h-5 w-5 object-contain block dark:hidden shrink-0"
+            width="auto"
+            height={32}
+            className="h-8 object-contain block dark:hidden shrink-0"
           />
           <img
             src={useAirlineLogo('dark')}
             alt="Airline Logo (dark)"
-            width={20}
-            height={20}
-            className="h-5 w-5 object-contain hidden dark:block shrink-0"
+            width="auto"
+            height={32}
+            className="h-8 object-contain hidden dark:block shrink-0"
           />
         </Link>
 

@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { updateAirlineAction } from '@/actions/airline/update-airline';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -56,6 +57,11 @@ const schema = z
       .number()
       .min(1, 'Inactivity period must be at least 1 day')
       .max(365, 'Inactivity period must be less than 365 days'),
+    enforceTypeRatings: z.boolean(),
+    typeRatingChangeDivisor: z
+      .number()
+      .min(1, 'Divisor must be at least 1')
+      .max(1000, 'Divisor must be less than or equal to 1000'),
     liveFilterSuffix: z.string().optional(),
     liveFilterVirtualOrg: z.string().optional(),
     liveFilterType: z.enum(['suffix', 'virtual_org']).optional(),
@@ -97,6 +103,8 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
       callsignMinRange: airline.callsignMinRange || 1,
       callsignMaxRange: airline.callsignMaxRange || 999,
       inactivityPeriod: airline.inactivityPeriod || 30,
+      enforceTypeRatings: airline.enforceTypeRatings ?? false,
+      typeRatingChangeDivisor: airline.typeRatingChangeDivisor ?? 1,
       liveFilterSuffix: airline.liveFilterSuffix || '',
       liveFilterVirtualOrg: airline.liveFilterVirtualOrg || '',
       liveFilterType:
@@ -159,6 +167,8 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
       liveFilterSuffix: values.liveFilterSuffix || '',
       liveFilterVirtualOrg: values.liveFilterVirtualOrg || '',
       liveFilterType: values.liveFilterType || 'virtual_org',
+      enforceTypeRatings: values.enforceTypeRatings,
+      typeRatingChangeDivisor: values.typeRatingChangeDivisor,
     });
   };
 
@@ -359,6 +369,88 @@ export function AirlineInlineForm({ airline }: AirlineInlineFormProps) {
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FormLabel className="text-base font-medium">
+              PIREP Settings
+            </FormLabel>
+            <p className="text-sm text-muted-foreground">
+              Configure how type ratings affect PIREP submissions.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="enforce-type-ratings"
+                checked={form.watch('enforceTypeRatings')}
+                onCheckedChange={(checked) =>
+                  form.setValue('enforceTypeRatings', checked as boolean)
+                }
+                disabled={isExecuting}
+              />
+              <label
+                htmlFor="enforce-type-ratings"
+                className="text-sm leading-tight"
+              >
+                Enforce type ratings for PIREPs
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  When enabled, type ratings only affect how hours are
+                  categorized, not whether a PIREP can be filed.
+                </span>
+              </label>
+            </div>
+            <FormField
+              control={form.control}
+              name="typeRatingChangeDivisor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type Rating Change Divisor</FormLabel>
+                  <p className="text-sm text-muted-foreground">
+                    Career hours are divided by this value when a type rating is
+                    switched.
+                  </p>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="1"
+                      min="1"
+                      max="1000"
+                      step="0.1"
+                      inputMode="decimal"
+                      className="h-11"
+                      disabled={isExecuting}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={
+                        field.value === undefined ||
+                        field.value === null ||
+                        Number.isNaN(field.value as number)
+                          ? ''
+                          : (field.value as number)
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          field.onChange(Number.NaN);
+                          return;
+                        }
+                        const num = Number(val);
+                        if (Number.isNaN(num)) {
+                          field.onChange(Number.NaN);
+                        } else {
+                          field.onChange(num);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <div className="space-y-4">

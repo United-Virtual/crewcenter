@@ -17,6 +17,9 @@ export const users = sqliteTable(
       .notNull(),
     callsign: integer('callsign', { mode: 'number' }).unique(),
     role: text('role'),
+    typeRatingId: text('type_rating_id').references(() => typeRatings.id, {
+      onDelete: 'set null',
+    }),
     banned: integer('banned', { mode: 'boolean' })
       .$defaultFn(() => false)
       .notNull(),
@@ -156,6 +159,12 @@ export const airline = sqliteTable(
     liveFilterSuffix: text('live_filter_suffix'),
     liveFilterVirtualOrg: text('live_filter_virtual_org'),
     liveFilterType: text('live_filter_type').$defaultFn(() => 'virtual_org'),
+    enforceTypeRatings: integer('enforce_type_ratings', { mode: 'boolean' })
+      .$defaultFn(() => false)
+      .notNull(),
+    typeRatingChangeDivisor: real('type_rating_change_divisor')
+      .$defaultFn(() => 1)
+      .notNull(),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .$defaultFn(() => new Date())
       .notNull(),
@@ -261,6 +270,36 @@ export const pireps = sqliteTable(
     t
       .index('pireps_daily_stats')
       .on(table.status, table.date, table.flightTime),
+  ]
+);
+
+export const flightTimeLedger = sqliteTable(
+  'flight_time_ledger',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    minutes: integer('minutes', { mode: 'number' }).notNull(),
+    category: text('category').notNull(),
+    sourceType: text('source_type').notNull(),
+    pirepId: text('pirep_id').references(() => pireps.id, {
+      onDelete: 'set null',
+    }),
+    note: text('note'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    t.index('flight_time_ledger_user_id_index').on(table.userId),
+    t
+      .index('flight_time_ledger_user_category_index')
+      .on(table.userId, table.category),
+    t.index('flight_time_ledger_pirep_id_index').on(table.pirepId),
   ]
 );
 
@@ -381,6 +420,47 @@ export const rankAircraft = sqliteTable(
     t.index('rank_aircraft_rank_id_index').on(table.rankId),
     t.index('rank_aircraft_aircraft_id_index').on(table.aircraftId),
     t.uniqueIndex('rank_aircraft_unique').on(table.rankId, table.aircraftId),
+  ]
+);
+
+export const typeRatings = sqliteTable(
+  'type_ratings',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [t.index('type_ratings_name_index').on(table.name)]
+);
+
+export const typeRatingAircraft = sqliteTable(
+  'type_rating_aircraft',
+  {
+    id: text('id').primaryKey(),
+    typeRatingId: text('type_rating_id')
+      .notNull()
+      .references(() => typeRatings.id, { onDelete: 'cascade' }),
+    aircraftId: text('aircraft_id')
+      .notNull()
+      .references(() => aircraft.id, { onDelete: 'cascade' }),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    t.index('type_rating_aircraft_type_rating_id_index').on(table.typeRatingId),
+    t.index('type_rating_aircraft_aircraft_id_index').on(table.aircraftId),
+    t
+      .uniqueIndex('type_rating_aircraft_unique')
+      .on(table.typeRatingId, table.aircraftId),
   ]
 );
 
@@ -611,6 +691,9 @@ export type NewMultiplier = InferInsertModel<typeof multipliers>;
 export type Pirep = InferSelectModel<typeof pireps>;
 export type NewPirep = InferInsertModel<typeof pireps>;
 
+export type FlightTimeLedger = InferSelectModel<typeof flightTimeLedger>;
+export type NewFlightTimeLedger = InferInsertModel<typeof flightTimeLedger>;
+
 export type RoutesFlightNumber = InferSelectModel<typeof routesFlightNumbers>;
 export type NewRoutesFlightNumber = InferInsertModel<
   typeof routesFlightNumbers
@@ -627,6 +710,12 @@ export type NewRank = InferInsertModel<typeof ranks>;
 
 export type RankAircraft = InferSelectModel<typeof rankAircraft>;
 export type NewRankAircraft = InferInsertModel<typeof rankAircraft>;
+
+export type TypeRating = InferSelectModel<typeof typeRatings>;
+export type NewTypeRating = InferInsertModel<typeof typeRatings>;
+
+export type TypeRatingAircraft = InferSelectModel<typeof typeRatingAircraft>;
+export type NewTypeRatingAircraft = InferInsertModel<typeof typeRatingAircraft>;
 
 export type LeaveRequest = InferSelectModel<typeof leaveRequests>;
 export type NewLeaveRequest = InferInsertModel<typeof leaveRequests>;

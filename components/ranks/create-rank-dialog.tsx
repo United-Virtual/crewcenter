@@ -141,7 +141,7 @@ export function RankForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="First Officer"
-            maxLength={15}
+            maxLength={100}
             required
           />
         </div>
@@ -331,8 +331,8 @@ export function RankForm({
 export default function CreateRankDialog({ children }: CreateRankDialogProps) {
   const [open, setOpen] = useState(false);
   const [aircraft, setAircraft] = useState<
-    { id: string; name: string; livery: string }[]
-  >([]);
+    { id: string; name: string; livery: string }[] | null
+  >(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const { dialogStyles } = useResponsiveDialog({
     maxWidth: 'sm:max-w-[500px]',
@@ -358,12 +358,14 @@ export default function CreateRankDialog({ children }: CreateRankDialogProps) {
   });
 
   useEffect(() => {
-    if (open && aircraft.length === 0 && !isLoadingData) {
+    if (open && aircraft === null && !isLoadingData) {
       setIsLoadingData(true);
       getRankFormDataAction()
         .then((result) => {
           if (result?.data) {
             setAircraft(result.data.aircraft);
+          } else {
+            setAircraft([]);
           }
         })
         .catch((error) => {
@@ -377,7 +379,7 @@ export default function CreateRankDialog({ children }: CreateRankDialogProps) {
           setIsLoadingData(false);
         });
     }
-  }, [open, aircraft.length, isLoadingData]);
+  }, [open, aircraft, isLoadingData]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -393,7 +395,7 @@ export default function CreateRankDialog({ children }: CreateRankDialogProps) {
             Enter rank details and configure aircraft permissions.
           </DialogDescription>
         </DialogHeader>
-        {isLoadingData || aircraft.length === 0 ? (
+        {isLoadingData || aircraft === null ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">

@@ -15,13 +15,17 @@ import { UserFlights } from '@/components/users/user-flights';
 import { UserProfile } from '@/components/users/user-profile';
 import { UserRoles } from '@/components/users/user-roles';
 import { UserStats } from '@/components/users/user-stats';
+import { UserTypeRatings } from '@/components/users/user-type-ratings';
 import {
   getAirline,
-  getFlightTimeForUser,
+  getCareerMinutesForUser,
+  getTotalMinutesForUser,
+  getTypeRatings,
   getUserById,
   getUserLastFlights,
   getUserPireps,
   getUserRank,
+  getUserTypeRating,
 } from '@/db/queries';
 import { getCurrentUserRoles, requireRole } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
@@ -50,12 +54,21 @@ export default async function AdminUserDetailPage({
     redirect('/admin/users');
   }
 
-  const [pirepCountResult, calculatedFlightTime, userFlights] =
-    await Promise.all([
-      getUserPireps(user.id, 1, 1),
-      getFlightTimeForUser(user.id),
-      getUserLastFlights(user.id),
-    ]);
+  const [
+    pirepCountResult,
+    calculatedFlightTime,
+    careerMinutes,
+    userFlights,
+    typeRatings,
+    userTypeRating,
+  ] = await Promise.all([
+    getUserPireps(user.id, 1, 1),
+    getTotalMinutesForUser(user.id),
+    getCareerMinutesForUser(user.id),
+    getUserLastFlights(user.id),
+    getTypeRatings(),
+    getUserTypeRating(user.id),
+  ]);
 
   const { total: pirepCount } = pirepCountResult;
 
@@ -85,10 +98,7 @@ export default async function AdminUserDetailPage({
     // Admins cannot kick/ban other admins; only owner can
     (!isTargetUserAdmin || isCurrentUserOwner);
 
-  const canManageRoles =
-    isCurrentUserSuperuser ||
-    (isCurrentUserUsersRole &&
-      (isSameUser || (!isTargetUserAdmin && !isTargetUserUsersRole)));
+  const canManageRoles = isCurrentUserSuperuser;
 
   // Only the current owner can transfer ownership
   const canTransferOwnership = isCurrentUserOwner && !isSameUser;
@@ -96,7 +106,7 @@ export default async function AdminUserDetailPage({
   // No one can reset the owner's password
   const canResetPassword = canPerformActions && !isTargetUserOwner;
 
-  const userRank = await getUserRank(calculatedFlightTime);
+  const userRank = await getUserRank(careerMinutes);
 
   return (
     <PageLayout className="space-y-6">
@@ -135,6 +145,13 @@ export default async function AdminUserDetailPage({
             user={user}
             canManageRoles={canManageRoles}
             isCurrentUserOwner={isCurrentUserOwner}
+          />
+          <UserTypeRatings
+            user={user}
+            typeRatings={typeRatings}
+            userTypeRating={userTypeRating}
+            canManageTypeRatings={canManageRoles}
+            typeRatingChangeDivisor={airline?.typeRatingChangeDivisor ?? 1}
           />
         </div>
 

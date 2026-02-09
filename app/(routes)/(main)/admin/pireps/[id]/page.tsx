@@ -9,6 +9,7 @@ import {
   getPirepById,
 } from '@/db/queries';
 import { getAirline } from '@/db/queries/airline';
+import { resolvePirepFlightTimeCategory } from '@/domains/pireps/flight-time-category';
 import { authCheck, requireRole } from '@/lib/auth-check';
 import { parseRolesField } from '@/lib/roles';
 
@@ -37,10 +38,14 @@ export default async function AdminPirepDetailPage({
   const airline = await getAirline();
 
   const userRoles = parseRolesField(session.user.role);
+  const flightTimeCategory =
+    pirep.flightTimeCategory ??
+    (await resolvePirepFlightTimeCategory(pirep.userId, pirep.aircraftId));
+  const pirepWithCategory = { ...pirep, flightTimeCategory };
 
   return (
     <PirepDetails
-      pirep={pirep}
+      pirep={pirepWithCategory}
       aircraft={aircraft}
       multiplier={multiplier}
       user={user}

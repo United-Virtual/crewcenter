@@ -1,21 +1,42 @@
 import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { airline, pireps, type User, users } from '@/db/schema';
+import { airline, flightTimeLedger, type User, users } from '@/db/schema';
 
-async function getFlightTimeForUser(userId: string): Promise<number> {
+type FlightTimeCategory = 'career' | 'free_fly';
+
+async function getLedgerMinutesForUser(
+  userId: string,
+  category?: FlightTimeCategory
+): Promise<number> {
+  const whereClause = category
+    ? sql<boolean>`${flightTimeLedger.userId} = ${userId} AND ${flightTimeLedger.category} = ${category}`
+    : sql<boolean>`${flightTimeLedger.userId} = ${userId}`;
+
   const result = await db
     .select({
-      totalFlightTime:
-        sql<number>`COALESCE(SUM(CASE WHEN ${pireps.status} = 'approved' THEN ${pireps.flightTime} ELSE 0 END), 0)`.as(
-          'totalFlightTime'
+      totalMinutes:
+        sql<number>`COALESCE(SUM(${flightTimeLedger.minutes}), 0)`.as(
+          'totalMinutes'
         ),
     })
-    .from(pireps)
-    .where(eq(pireps.userId, userId))
+    .from(flightTimeLedger)
+    .where(whereClause)
     .get();
 
-  return result?.totalFlightTime ?? 0;
+  return result?.totalMinutes ?? 0;
+}
+
+async function getCareerMinutesForUser(userId: string): Promise<number> {
+  return getLedgerMinutesForUser(userId, 'career');
+}
+
+async function getFreeFlyMinutesForUser(userId: string): Promise<number> {
+  return getLedgerMinutesForUser(userId, 'free_fly');
+}
+
+async function getTotalMinutesForUser(userId: string): Promise<number> {
+  return getLedgerMinutesForUser(userId);
 }
 
 async function getUsersPaginated(
@@ -109,7 +130,9 @@ async function getUserById(id: string): Promise<User | null> {
 }
 
 export {
-  getFlightTimeForUser,
+  getCareerMinutesForUser,
+  getFreeFlyMinutesForUser,
+  getTotalMinutesForUser,
   getUnverifiedUsersPaginated,
   getUserById,
   getUsersPaginated,
